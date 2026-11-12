@@ -22,7 +22,7 @@ recherche:
   niveaux_a_postuler: [bon, moyen]  # match CV / offre (bon, moyen, faible) qui passe « à postuler »
   candidature_auto: false # true = l'agent remplit et envoie lui-même les candidatures intégrées (voir « Conditions d'utilisation » dans le README)
   # max_candidatures_par_session: 3  # facultatif : sans ces lignes, pas de limite
-  # max_candidatures_par_jour: 8
+  max_candidatures_par_jour: 15 # au plus 15 candidatures envoyées par jour
 
 # Rythme du mode continu (`agent-job daemon`) : très espacé pour ménager le compte.
 rythme:
@@ -34,7 +34,7 @@ rythme:
   pages_par_recherche: 5           # pages de résultats parcourues (25 offres chacune) tant que la part du site (parts_par_site) n'est pas atteinte
   ralentissement: 2.0              # multiplie les pauses entre les actions du navigateur
   # attente_lot_minutes: 30 # facultatif : sans cette ligne, l'agent attend la fin du lot LLM
-  pause_entre_candidatures_minutes: [8, 12] # délai aléatoire entre deux candidatures
+  pause_entre_candidatures_minutes: [5, 8] # délai aléatoire entre deux candidatures
 
 # Réponses aux questions fréquentes des formulaires. L'agent n'invente rien :
 # une question obligatoire sans réponse ici fait abandonner la candidature

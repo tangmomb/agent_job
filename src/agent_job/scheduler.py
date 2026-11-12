@@ -35,7 +35,7 @@ DEFAULT_RYTHME = {
     "pages_par_recherche": 5,  # pages de résultats parcourues par recherche, tant que la part du site (parts_par_site) n'est pas atteinte
     "ralentissement": 2.0,
     "attente_lot_minutes": None,  # attente max du lot LLM ; vide = jusqu'à la fin du lot
-    "pause_entre_candidatures_minutes": [8, 12],  # délai aléatoire entre deux candidatures
+    "pause_entre_candidatures_minutes": [5, 8],  # délai aléatoire entre deux candidatures
 }
 
 

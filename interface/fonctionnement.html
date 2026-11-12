@@ -2527,7 +2527,7 @@ recherche:
   niveaux_a_postuler: [bon, moyen]  # match CV / offre (bon, moyen, faible) qui passe « à postuler »
   candidature_auto: true
   # max_candidatures_par_session: 3  # facultatif : sans ces lignes, pas de limite
-  # max_candidatures_par_jour: 8
+  max_candidatures_par_jour: 15 # au plus 15 candidatures envoyées par jour
 
 # Rythme du mode continu (`agent-job daemon`) : très espacé pour ménager le compte.
 rythme:
@@ -2539,7 +2539,7 @@ rythme:
   pages_par_recherche: 5 # pages de résultats parcourues (25 offres chacune)
   ralentissement: 2.0 # multiplie les pauses entre les actions du navigateur
   # attente_lot_minutes: 30 # facultatif : sans cette ligne, l&#x27;agent attend la fin du lot LLM
-  pause_entre_candidatures_minutes: [8, 12] # délai aléatoire entre deux candidatures
+  pause_entre_candidatures_minutes: [5, 8] # délai aléatoire entre deux candidatures
 
 # Réponses aux questions des formulaires. null = inconnu : la candidature est abandonnée
 # si la question est obligatoire.
@@ -3228,8 +3228,9 @@ d&#x27;AI Applied Engineer et souhaiterions échanger avec vous…</pre
                 </li>
                 <li>
                   <b>Pause.</b> L'agent marque ensuite
-                  <b>une pause de 8 à 12 minutes</b>, tirée au hasard, avant la
-                  candidature suivante.
+                  <b>une pause de 5 à 8 minutes</b>, tirée au hasard, avant la
+                  candidature suivante, avec <b>au plus 15 candidatures par
+                  jour</b> (<code>max_candidatures_par_jour</code>).
                 </li>
               </ol>
               <ul>
