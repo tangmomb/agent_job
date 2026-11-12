@@ -89,8 +89,18 @@ SNAPSHOT_JS = r"""
   const heading = root.querySelector('h1, h2, h3');
   const errors = [...root.querySelectorAll('[role=alert], .artdeco-inline-feedback--error, [class*=error]')]
                    .map(e => e.innerText.trim()).filter(Boolean).slice(0, 8);
+  // Avancement du formulaire (« 25 % » chez LinkedIn) : barre de progression visible avec une valeur, sinon
+  // premier pourcentage juste sous le titre de la fenêtre. Python s'en sert pour repérer le changement d'étape.
+  const shown = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const bar = [...root.querySelectorAll('[role=progressbar][aria-valuenow], progress[value]')].find(shown)
+           || [...document.querySelectorAll('[role=progressbar][aria-valuenow], progress[value]')].find(shown);
+  let progress = bar ? Number(bar.getAttribute('aria-valuenow') ?? bar.value) : null;
+  if (progress === null || Number.isNaN(progress)) {
+    const m = root.innerText.slice(0, 120).match(/\b(\d{1,3})\s?%/);
+    progress = m && Number(m[1]) <= 100 ? Number(m[1]) : null;
+  }
   return { url: location.href, title: document.title, heading: heading ? heading.innerText.trim() : '',
-           text: root.innerText.replace(/\s+/g, ' ').slice(0, 1500), errors, fields: fields.slice(0, 80) };
+           progress, text: root.innerText.replace(/\s+/g, ' ').slice(0, 1500), errors, fields: fields.slice(0, 80) };
 }
 """
 

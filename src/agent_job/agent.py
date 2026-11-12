@@ -486,6 +486,7 @@ class ApplyJournal:
         self.step = 1  # étape du formulaire (page) affichée
         self.last_step = 1  # plus grand numéro d'étape attribué
         self.signatures: dict[int, set[str]] = {}  # étape → signature de sa page
+        self.progress_by_step: dict[int, int] = {}  # étape → avancement affiché par le site (« 25 % »)
         self.skipped_by_step: dict[int, dict[str, str]] = {}  # étape → {ref: raison} (champs laissés vides)
         self.refs: set[str] = set()
         self.labels: dict[str, str] = {}
@@ -524,19 +525,31 @@ class ApplyJournal:
         fields = snap.get("fields", [])
         refs = {f["ref"] for f in fields}
         sig = self._signature(snap)
+        progress = snap.get("progress")
         current = self.signatures.get(self.step)
-        if current is None or self._same(sig, current):
+        current_progress = self.progress_by_step.get(self.step)
+        if progress is not None and current_progress is not None:
+            # Avancement affiché par le site (« 25 % ») : signal le plus sûr, même quand deux pages partagent
+            # leurs champs (une case « Suivez l'entreprise » répétée sur chaque page, par exemple).
+            same_page = progress == current_progress
+            match = lambda s: self.progress_by_step.get(s) == progress
+        else:
+            same_page = current is None or self._same(sig, current)
+            match = lambda s: self._same(sig, self.signatures.get(s, set()))
+        if same_page:
             if current is not None:  # même page : les champs apparus depuis la lecture précédente sont "nouveau"
                 for f in fields:
                     if f["ref"] not in self.refs:
                         f["nouveau"] = True
         else:  # autre page : une étape déjà vue (bouton Retour) ou une nouvelle
-            seen = next((s for s, other in self.signatures.items() if s != self.step and self._same(sig, other)), None)
+            seen = next((s for s in self.signatures if s != self.step and match(s)), None)
             if seen is None:
                 self.last_step += 1
                 seen = self.last_step
             self.step = seen
         self.signatures[self.step] = sig
+        if progress is not None:
+            self.progress_by_step[self.step] = progress
         for f in fields:
             if f["ref"] in self.skipped:
                 f["laissé_vide"] = self.skipped[f["ref"]]
