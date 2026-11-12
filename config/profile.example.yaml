@@ -1,0 +1,57 @@
+# Copier ce fichier en config/profile.yaml puis le remplir.
+candidat:
+  nom: "Prénom Nom"
+  email: "vous@example.com"
+  telephone: "+33 6 00 00 00 00"
+  ville: "Paris"
+  cv_path: "data/cv-TanguyMombert-IA.pdf"
+  linkedin: "https://www.linkedin.com/in/votre-profil"
+  resume: >
+    Développeur Python avec 5 ans d'expérience en data et automatisation...
+  competences: [Python, SQL, Docker, FastAPI]
+  langues: [Français (natif), Anglais (courant)]
+
+recherche:
+  mots_cles: ["développeur python", "data engineer"]
+  lieux: ["Paris", "Remote"]
+  contrats: [CDI]
+  teletravail: "hybride ou full remote"
+  salaire_min: 50000
+  entreprises_exclues: []
+  mots_exclus_titre: [senior, séniorité, stage, stagiaire, internship, intern, pfe, alternance, alternant] # offres ignorées dès la recherche (ni lues ni inscrites au Sheet)
+  niveaux_a_postuler: [bon, moyen]  # match CV / offre (bon, moyen, faible) qui passe « à postuler »
+  candidature_auto: false # true = l'agent remplit et envoie lui-même les candidatures intégrées (voir « Conditions d'utilisation » dans le README)
+  # max_candidatures_par_session: 3  # facultatif : sans ces lignes, pas de limite
+  # max_candidatures_par_jour: 8
+
+# Rythme du mode continu (`agent-job daemon`) : très espacé pour ménager le compte.
+rythme:
+  intervalle_minutes: [20, 60]     # délai aléatoire entre deux sessions
+  # heures_actives: "9-19"         # facultatif : sans ces lignes, l'agent tourne dès qu'il est lancé
+  # jours_actifs: [lun, mar, mer, jeu, ven]
+  max_offres_lues_par_session: 20  # pages d'offres ouvertes par session
+  parts_par_site: {linkedin: 8, wttj: 8, indeed: 4}  # répartition de ces 20 entre les sites
+  pages_par_recherche: 5           # pages de résultats parcourues (25 offres chacune) tant que la part du site (parts_par_site) n'est pas atteinte
+  ralentissement: 2.0              # multiplie les pauses entre les actions du navigateur
+  # attente_lot_minutes: 30 # facultatif : sans cette ligne, l'agent attend la fin du lot LLM
+  pause_entre_candidatures_minutes: [8, 12] # délai aléatoire entre deux candidatures
+
+# Réponses aux questions fréquentes des formulaires. L'agent n'invente rien :
+# une question obligatoire sans réponse ici fait abandonner la candidature
+# (statut « à postuler (manuel) » avec la question dans les notes).
+reponses:
+  annees_experience: 5
+  annees_experience_par_techno: { Python: 5, SQL: 4, Docker: 3 }
+  poste_actuel: "Développeur Python" # réponse à « Poste actuel »
+  # Expérience sur le poste recherché : à préciser, surtout en reconversion, pour que l'agent n'assimile pas
+  # un autre métier à « ce poste » ou à « un poste similaire ».
+  experience_poste_recherche: "5 ans en tant que développeur Python"
+  premiere_experience_poste_recherche: "2021" # « Quand as-tu eu ta première expérience sur ce poste ? » ("aucune" si aucune)
+  pretentions_salariales: "55 000 € brut annuel"
+  disponibilite: "préavis de 2 mois"
+  autorise_a_travailler_en_france: true
+  besoin_de_sponsorship_visa: false
+  permis_b: true
+  accepte_deplacements: "occasionnels"
+  niveau_etudes: "Bac+5 (Master informatique)"
+  genre_diversite: "Je préfère ne pas répondre"

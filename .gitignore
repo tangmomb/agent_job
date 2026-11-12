@@ -1,0 +1,20 @@
+# Environnement
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Secrets & données personnelles
+.env
+config/profile.yaml
+.browser_profile/
+config/sessions/
+data/*
+!data/.gitkeep
+
+# Identifiants Google
+config/google_credentials.json
+config/google_token.json
+
+# Page explicative avec les vraies données personnelles : locale uniquement, jamais publiée
+interface/fonctionnement-candidat-tm.html
