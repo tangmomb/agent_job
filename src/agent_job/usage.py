@@ -13,8 +13,9 @@ from typing import Any
 PRICES = {
     "mistral-large-4": (1.36, 0.14, 4.18),
     "zai-glm-5-3-flash": (0.15, 0.03, 0.50),
+    "deepseek-v4-1-flash-1017": (0.30, 0.007, 1.20),  # servi par Mistral
 }
-for _name, _env in (("mistral-large-4", "MISTRAL"), ("zai-glm-5-3-flash", "GLM")):
+for _name, _env in (("mistral-large-4", "MISTRAL"), ("zai-glm-5-3-flash", "GLM"), ("deepseek-v4-1-flash-1017", "DEEPSEEK")):
     _p = PRICES[_name]
     PRICES[_name] = tuple(float(os.getenv(f"{_env}_PRICE_{k}", v)) for k, v in zip(("INPUT", "CACHED", "OUTPUT"), _p))
 BATCH_DISCOUNT = float(os.getenv("MISTRAL_BATCH_DISCOUNT", "0.5"))  # l'API Batch coûte 50 % du tarif normal

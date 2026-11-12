@@ -28,7 +28,7 @@ class Settings:
     sessions_dir: Path = _path("SESSIONS_DIR", "config/sessions")
     letters_dir: Path = _path("LETTERS_DIR", "data/lettres")
     model: str = os.getenv("AGENT_MODEL", "mistral-large-4")  # évaluation des offres et lettres (lot)
-    apply_model: str = os.getenv("APPLY_MODEL", "zai-glm-5-3-flash")  # remplissage des formulaires (en direct)
+    apply_model: str = os.getenv("APPLY_MODEL", "deepseek-v4-1-flash-1017")  # remplissage des formulaires (en direct)
     # Plusieurs actions par appel (moins d'appels) ou une seule (plus prudent, défaut : le modèle est peu cher)
     # Tri des e-mails : étape cruciale (statuts du Sheet), même modèle que l'évaluation par défaut
     mail_model: str = os.getenv("MAIL_MODEL", "") or os.getenv("AGENT_MODEL", "mistral-large-4")
