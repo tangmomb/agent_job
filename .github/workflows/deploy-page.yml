@@ -1,0 +1,40 @@
+name: Mise en ligne de la page explicative
+
+# À chaque push qui touche la page, le VPS met à jour sa copie de interface/ (agent-job.tanguym.fr).
+# La clé DEPLOY_SSH_KEY est bridée côté serveur : elle ne peut lancer que cette mise à jour.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "interface/**"
+      - ".github/workflows/deploy-page.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: page-explicative
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mettre à jour la page sur le VPS
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "ubuntu@$HOST"
+
+      - name: Vérifier la page en ligne
+        run: |
+          sleep 3
+          curl -fsS -o /dev/null -w "agent-job.tanguym.fr : HTTP %{http_code}\n" https://agent-job.tanguym.fr/ \
+            || echo "::warning::agent-job.tanguym.fr ne répond pas encore (DNS ou certificat)."
