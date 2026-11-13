@@ -62,6 +62,10 @@ absente du profil) : appelle `form_skip` avec la raison, sinon tu te reposeras l
 Règles :
 - Réponds uniquement à partir du profil (section `reponses` comprise) et du CV. Si une question obligatoire n'a pas de
   réponse sûre, n'invente rien : `finish_application` avec sent=false en citant la question.
+- Question fermée sur une condition (« Le TJM / salaire de … te convient-il ? », temps de travail, jours par semaine,
+  mobilité, télétravail…) : réponds seulement si le profil permet de trancher (comparer le chiffre proposé à
+  `tjm_freelance_minimum` ou `pretentions_salariales`, par exemple) ; sinon abandon. Ne réponds jamais « oui » par
+  défaut pour avancer.
 - Exception : pour toute question sur un nombre d'années d'expérience (avec un outil, une technologie, un domaine…)
   qui n'est pas précisé dans le profil, réponds 1 an (« 1 » si le champ attend un nombre).
 - Expérience « sur ce poste », « sur un poste similaire » ou dans le métier visé : n'assimile jamais une expérience
