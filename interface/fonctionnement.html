@@ -2796,8 +2796,10 @@ d&#x27;AI Applied Engineer et souhaiterions échanger avec vous…</pre
                   <code>f1</code>…) qui reste le même d'une lecture à l'autre,
                   et renvoie un résumé JSON : pour chaque élément, sa référence,
                   son libellé, son type, sa valeur actuelle, s'il est
-                  obligatoire et les options des listes ; plus le titre, le
-                  texte affiché et les messages d'erreur. Le LLM reçoit ce
+                  obligatoire, les options des listes et le message d'erreur
+                  affiché sous lui par le site (« Ce champ est obligatoire »,
+                  qui le marque aussi obligatoire) ; plus le titre, le texte
+                  affiché et la liste des messages d'erreur. Le LLM reçoit ce
                   résumé, pas le HTML ni une capture d'écran.
                   <div class="ex">
                     <div class="ex-col in">
@@ -2934,6 +2936,16 @@ d&#x27;AI Applied Engineer et souhaiterions échanger avec vous…</pre
                     de page (les libellés des champs changent) et, si le site
                     revient en arrière (bouton Retour), retrouve le numéro de
                     l'étape et les champs laissés vides.
+                  </p>
+                  <p>
+                    <b>Formulaire bloqué</b> : si trois clics de suite ne
+                    changent rien à la page (un « Suivant » refusé par le site),
+                    Python ajoute une remarque à la requête suivante pour que le
+                    LLM cherche le champ qui bloque ; au sixième, il abandonne
+                    la candidature lui-même (« formulaire bloqué »), qui passe
+                    en <b>à postuler (manuel)</b>. Sans ce garde-fou, une
+                    expérience importée par LinkedIn dont les dates manquent
+                    faisait cliquer « Suivant » jusqu'à la limite de 80 appels.
                   </p>
                   <p>
                     La 30e requête a presque la taille de la 1re (seul le

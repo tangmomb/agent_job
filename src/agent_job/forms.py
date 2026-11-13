@@ -44,6 +44,23 @@ SNAPSHOT_JS = r"""
     if (!t) t = el.placeholder || el.innerText || el.value || el.name || '';
     return t.replace(/\s+/g, ' ').trim().slice(0, 200);
   };
+  // Message d'erreur affiché par le site sous un champ (« Ce champ est obligatoire ») : aria-describedby, sinon
+  // texte court d'un conteneur proche qui n'englobe pas d'autres champs ; à défaut aria-invalid
+  const shown = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const ERR = /(ce champ est (obligatoire|requis)|champ (obligatoire|requis)|this field is required|is required|veuillez (saisir|s[ée]lectionner|indiquer|renseigner|choisir|entrer)|please (enter|select|provide|choose|make)|invalide|invalid)/i;
+  const errOf = (el) => {
+    const by = el.getAttribute('aria-describedby');
+    let msg = by ? by.split(' ').map(i => (document.getElementById(i) || {}).innerText || '').join(' ').trim() : '';
+    if (!ERR.test(msg)) msg = '';
+    for (let a = el.parentElement, k = 0; !msg && a && k < 3; k++, a = a.parentElement) {
+      if (a.querySelectorAll('input:not([type=hidden]), textarea, select').length > 1) break;
+      const n = [...a.querySelectorAll('span, p, div, small')].find(n => !n.querySelector('input, select, textarea')
+                  && n.innerText && n.innerText.length < 120 && ERR.test(n.innerText) && shown(n));
+      if (n) msg = n.innerText.trim();
+    }
+    if (!msg && el.getAttribute('aria-invalid') === 'true') msg = 'valeur refusée par le site';
+    return msg.replace(/\s+/g, ' ').slice(0, 120);
+  };
   // Références stables : un élément garde sa ref d'une lecture à l'autre (une liste qui s'ouvre ne décale rien)
   window.__agentRefN = window.__agentRefN || 0;
   const used = new Set();
@@ -81,17 +98,21 @@ SNAPSHOT_JS = r"""
     if (!item.required && sec && sec.querySelectorAll('input:not([type=hidden]), textarea, select').length === 1
         && [...sec.querySelectorAll('p, span')].some(n => /^(requis|required|obligatoire)$/i.test(n.innerText.trim())))
       item.required = true;
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.getAttribute('role')) {
+      const err = errOf(el);
+      if (err) { item.error = err; if (/obligatoire|requis|required/i.test(err)) item.required = true; }
+    }
     if (type === 'checkbox' || type === 'radio') item.checked = !!(el.checked || el.getAttribute('aria-checked') === 'true');
     else if (el.tagName !== 'BUTTON' && el.tagName !== 'A') item.value = (el.value || '').slice(0, 120);
     if (el.tagName === 'SELECT') item.options = [...el.options].map(o => o.text.trim()).filter(Boolean).slice(0, 40);
     fields.push(item);
   }
   const heading = root.querySelector('h1, h2, h3');
-  const errors = [...root.querySelectorAll('[role=alert], .artdeco-inline-feedback--error, [class*=error]')]
-                   .map(e => e.innerText.trim()).filter(Boolean).slice(0, 8);
+  const errors = [...new Set([...root.querySelectorAll('[role=alert], .artdeco-inline-feedback--error, [class*=error]')]
+                   .map(e => e.innerText.trim()).filter(Boolean)
+                   .concat(fields.filter(f => f.error).map(f => `${f.label.slice(0, 60)} : ${f.error}`)))].slice(0, 8);
   // Avancement du formulaire (« 25 % » chez LinkedIn) : barre de progression visible avec une valeur, sinon
   // premier pourcentage juste sous le titre de la fenêtre. Python s'en sert pour repérer le changement d'étape.
-  const shown = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const bar = [...root.querySelectorAll('[role=progressbar][aria-valuenow], progress[value]')].find(shown)
            || [...document.querySelectorAll('[role=progressbar][aria-valuenow], progress[value]')].find(shown);
   let progress = bar ? Number(bar.getAttribute('aria-valuenow') ?? bar.value) : null;

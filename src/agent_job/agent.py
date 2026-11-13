@@ -50,7 +50,8 @@ puis t'envoie une nouvelle requête avec ce même prompt et deux éléments à j
      `text` : texte affiché (tronqué) ; `errors` : messages d'erreur du site ;
    - `fields` : champs et boutons visibles, chacun avec `ref` (à passer aux outils), `type` (text, radio, checkbox,
      select-one, autocomplete, file, submit…), `label` (pour un bouton radio : « question → option »), `required`,
-     et selon le cas `value` (valeur actuelle), `checked` (case cochée) ou `options` (choix d'une liste <select>).
+     et selon le cas `value` (valeur actuelle), `checked` (case cochée), `options` (choix d'une liste <select>) ou
+     `error` (message d'erreur affiché par le site sous ce champ, « Ce champ est obligatoire »…).
    - `"nouveau": true` : champ apparu sur la même page (souvent une question de suivi, « Si oui, précisez ») ;
      traite-le avant de continuer. `"laissé_vide"` : champ que tu as décidé de laisser vide (`form_skip`).
 Remplis les champs de la page de haut en bas. Un champ que tu laisses volontairement vide (facultatif, réponse
@@ -79,6 +80,10 @@ Règles :
   options apparaissent alors comme des éléments "option" à cliquer avec `form_click`.
   Ne choisis jamais une option dont tu ne lis pas le libellé (pas de clic « à l'aveugle ») : si le libellé reste
   illisible dans l'état actuel, laisse un champ facultatif vide (`form_skip`) ou abandonne pour un champ obligatoire.
+- Champ avec `error` : le site refuse d'avancer tant qu'il n'est pas corrigé ; ne clique pas « Suivant » avant.
+  Entrée préremplie par le site (expérience, formation… importée du profil {platform}) dont un champ obligatoire
+  demande une information absente du profil : supprime cette entrée (bouton « Supprimer » de l'entrée) si le
+  formulaire le permet, sinon abandon (`finish_application`, sent=false) en citant le champ.
 - Ne crée jamais de compte, ne saisis jamais de mot de passe, ne quitte pas {platform} (sinon : abandon, "candidature externe").
 - Case d'acceptation du traitement des données par l'entreprise pour cette candidature (CGU de la candidature) :
   coche-la, elle fait partie de l'envoi. N'accepte aucune autre option facultative (newsletter, alertes, partage).
@@ -93,6 +98,8 @@ Lettre de motivation préparée :
 Profil du candidat (YAML) :
 {profile}
 """
+
+STUCK_WARN, STUCK_ABORT = 3, 6  # clics sans effet de suite : rappel, puis abandon (le formulaire ne bouge plus)
 
 # Consigne selon le mode : une action par appel (défaut) ou plusieurs (APPLY_PARALLEL=true)
 BATCHING_ONE = """Une action par réponse : fais un seul appel d'outil à la fois ; son résultat sera la dernière ligne du
@@ -685,6 +692,7 @@ def apply_to_offer(client: Mistral, session: BrowserSession, tracker: Tracker, p
     done_before = len(state.applied) + len(state.abandoned)
     usage = Usage(model=settings.apply_model)  # consommation de cette candidature
     nudged = False  # rappel déjà fait après une réponse sans appel d'outil
+    last_page, stuck = None, 0  # clics sans effet de suite (page relue identique) : formulaire bloqué
     for _ in range(max_iterations):
         # Pas de conversation renvoyée : prompt système + un seul message (journal + état actuel), refait à chaque tour
         request = journal.request()
@@ -718,7 +726,22 @@ def apply_to_offer(client: Mistral, session: BrowserSession, tracker: Tracker, p
         if len(state.applied) + len(state.abandoned) > done_before:
             break  # finish_application appelé
         # Page relue par Python (sans appel au LLM) pour la requête suivante
-        journal.read_page(call_tool(all_tools, "_form_state", {}, state))
+        page = call_tool(all_tools, "_form_state", {}, state)
+        journal.read_page(page)
+        if page != last_page:
+            stuck = 0
+        elif any(c.function.name == "form_click" for c in msg.tool_calls):
+            stuck += 1
+        last_page = page
+        if stuck >= STUCK_ABORT:
+            all_tools["finish_application"](offer["url"], sent=False,
+                                            reason=f"formulaire bloqué : {stuck} clics de suite sans effet sur la page")
+            break
+        if stuck == STUCK_WARN:
+            journal.reminder = (f"tes {stuck} derniers clics n'ont rien changé à la page. Cherche le champ qui bloque "
+                                "(`error`, champ obligatoire vide, entrée préremplie à compléter ou à supprimer) ; "
+                                "si tu ne peux pas le corriger depuis le profil, abandonne (`finish_application`, "
+                                "sent=false) en citant le champ.")
         if state.current is not None and state.current.name in state.blocked_sites:
             # Blocage ou session expirée sur ce site : rien n'a été envoyé, l'offre reste « à postuler »
             all_tools["interrupt_application"]()
