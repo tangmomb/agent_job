@@ -370,6 +370,10 @@ def discover_site(site: JobSite, session: BrowserSession, tracker: Tracker, prof
                 except (SiteBlocked, SessionExpired) as e:
                     note_block(state, site.name, e)
                     return found
+                except Exception as e:  # offre illisible (élément introuvable, délai dépassé) : la suivante
+                    state.incidents.append(f"lecture {o.url} : {type(e).__name__}: {e}"[:300])
+                    console.print(f"[yellow]  offre illisible, ignorée : {o.title} ({type(e).__name__})")
+                    continue
                 o = site.refine(o)
                 if o.company.lower() in excluded:
                     continue

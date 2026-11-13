@@ -122,8 +122,9 @@ class Indeed(JobSite):
     def fetch_description(self, url: str) -> str:
         page, jk = self.session.page, self._jk(url)
         card = page.locator(f"a[data-jk='{jk}']").first
-        if not jk or not card.count():
-            # Offre absente de la liste affichée (phase de candidature, autre page) : liste centrée sur l'offre
+        if not jk or not card.count() or not card.is_visible():
+            # Offre absente de la liste affichée (phase de candidature, autre page) ou carte présente mais cachée
+            # (impossible à faire défiler ni à cliquer) : liste centrée sur l'offre
             page = self.session.goto(f"{self.base_url}/jobs?q=&l=&vjk={jk}")
             self.check_page(page)
             self._decline_cookies()
