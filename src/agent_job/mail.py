@@ -523,6 +523,9 @@ def apply_result(tracker: Tracker, mail: Mail, data: dict, report: MailReport, d
         report.unmatched.append(f"{label} : « {mail.subject} »")
         console.print(f"[yellow]📧 {label} sans offre au Sheet : « {mail.subject} »")
         return
+    # Ligne relue à jour : mail.offer date d'avant le relevé, et un autre e-mail de la même offre vient peut-être
+    # d'en changer le statut ou les liens (sinon un accusé traité après un entretien le ferait reculer)
+    row = tracker.get(row["url"]) or row
     day = (mail.when or datetime.now()).date().isoformat()
     target = TARGET[kind]
     fields: dict[str, Any] = {}
