@@ -147,6 +147,7 @@ class Tracker:
         "action requise": {"red": 1.0, "green": 0.93, "blue": 0.80},       # orange léger : à toi de répondre
         "entretien": {"red": 0.86, "green": 0.92, "blue": 0.99},           # bleu léger
         "refus": {"red": 0.99, "green": 0.89, "blue": 0.89},                # rouge léger
+        "offre fermée": {"red": 0.99, "green": 0.89, "blue": 0.89},         # rouge léger, comme un refus
     }
 
     def _ensure_row_colors(self) -> None:
