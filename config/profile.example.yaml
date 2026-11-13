@@ -47,6 +47,8 @@ reponses:
   # Expérience sur le poste recherché : à préciser, surtout en reconversion, pour que l'agent n'assimile pas
   # un autre métier à « ce poste » ou à « un poste similaire ».
   experience_poste_recherche: "5 ans en tant que développeur Python"
+  # Expériences préremplies par un site (importées du profil LinkedIn…) à retirer de la candidature, jamais citées
+  experiences_a_retirer: [] # ex. ["Nom d'un ancien employeur sans rapport"]
   premiere_experience_poste_recherche: "2021" # « Quand as-tu eu ta première expérience sur ce poste ? » ("aucune" si aucune)
   pretentions_salariales: "55 000 € brut annuel"
   disponibilite: "préavis de 2 mois"

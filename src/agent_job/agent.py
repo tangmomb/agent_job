@@ -84,6 +84,8 @@ Règles :
   Entrée préremplie par le site (expérience, formation… importée du profil {platform}) dont un champ obligatoire
   demande une information absente du profil : supprime cette entrée (bouton « Supprimer » de l'entrée) si le
   formulaire le permet, sinon abandon (`finish_application`, sent=false) en citant le champ.
+- Entrée préremplie qui correspond à `experiences_a_retirer` de `reponses` : supprime-la (bouton « Supprimer » de
+  l'entrée) même si elle est complète, et ne cite jamais ces expériences dans un champ.
 - Ne crée jamais de compte, ne saisis jamais de mot de passe, ne quitte pas {platform} (sinon : abandon, "candidature externe").
 - Case d'acceptation du traitement des données par l'entreprise pour cette candidature (CGU de la candidature) :
   coche-la, elle fait partie de l'envoi. N'accepte aucune autre option facultative (newsletter, alertes, partage).

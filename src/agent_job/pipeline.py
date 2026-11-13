@@ -63,6 +63,7 @@ Lettre (seulement si à postuler) : en français (anglais si l'annonce est en an
 `lettre` du profil, spécifique à l'offre, sans inventer aucune expérience ni compétence absente du profil.
 Les expériences gardent l'intitulé du profil, sans le grossir ni le requalifier : de la création digitale et
 multimédia dont du développement web ne devient pas « développeur web confirmé » ou « 10 ans de développement web ».
+Ne cite jamais les expériences de `experiences_a_retirer` (section `reponses`).
 La lettre doit être prête à être envoyée telle quelle :
 - signée « {signature} » ;
 - aucun élément à compléter : pas de crochets, de chevrons, de « XXX », de date ou d'adresse à remplir, pas de
