@@ -41,6 +41,7 @@ rythme:
 # (statut « à postuler (manuel) » avec la question dans les notes).
 reponses:
   annees_experience: 5
+  annees_experience_developpement_web: 3 # par domaine, si le parcours en mêle plusieurs
   annees_experience_par_techno: { Python: 5, SQL: 4, Docker: 3 }
   poste_actuel: "Développeur Python" # réponse à « Poste actuel »
   # Expérience sur le poste recherché : à préciser, surtout en reconversion, pour que l'agent n'assimile pas
