@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import random
 import re
 from urllib.parse import quote_plus
@@ -66,8 +67,8 @@ class LinkedIn(JobSite):
 
     def canonical(self, url: str) -> str:
         """fr.linkedin.com/jobs/view/titre-123 -> www.linkedin.com/jobs/view/123/ (domaine de la session)."""
-        m = re.search(r"/jobs/view/(?:[^/?]*-)?(\d+)", url)
-        return f"{self.base_url}/jobs/view/{m.group(1)}/" if m else url
+        m = re.search(r"/jobs/view/(?:[^/?]*-)?(\d+)", url) or re.search(r"[?&]currentJobId=(\d+)", url)
+        return f"{self.base_url}/jobs/view/{m.group(1)}/" if m else url  # currentJobId : lien de liste de résultats
 
     def fetch_description(self, url: str) -> str:
         """Comme un visiteur : la carte de la liste affichée est amenée à l'écran, survolée puis cliquée, et l'offre
@@ -94,6 +95,19 @@ class LinkedIn(JobSite):
             return pane.inner_text(timeout=5_000).strip() if pane is not None else ""
         except Exception:
             return ""
+
+    def refine(self, offer: JobOffer) -> JobOffer:
+        """Offre ouverte directement (lien manuel, sans carte de résultat) : titre et entreprise d'après le titre de
+        la page, « Intitulé | Entreprise | LinkedIn »."""
+        if offer.title and offer.company:
+            return offer
+        try:
+            title = html.unescape(re.sub(r"^\(\d+\+?\)\s*", "", self.session.page.title()))  # « &amp; » dans le titre
+        except Exception:
+            return offer
+        parts = [p.strip() for p in title.split("|") if p.strip() and p.strip() != "LinkedIn"]
+        return offer.model_copy(update={"title": offer.title or (parts[0] if parts else ""),
+                                        "company": offer.company or (parts[1] if len(parts) > 1 else "")})
 
     def start_application(self, url: str, on_loaded=None) -> str:
         return super().start_application(self.canonical(url), on_loaded)

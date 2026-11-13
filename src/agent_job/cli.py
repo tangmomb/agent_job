@@ -226,8 +226,10 @@ def status() -> None:
 
 @app.command()
 def tracker(status: str = typer.Option("", help="Filtrer par statut")) -> None:
-    """Affiche le suivi des candidatures."""
-    rows = Tracker().rows(status or None)
+    """Affiche le suivi des candidatures (et crée l'onglet ajout_lien_manuel s'il manque)."""
+    t = Tracker()
+    t.manual_links()
+    rows = t.rows(status or None)
     table = Table("Date", "Site", "Titre", "Entreprise", "Match", "Statut")
     for r in rows:
         table.add_row(str(r["date_ajout"]), str(r["site"]), str(r["titre"]), str(r["entreprise"] or ""),

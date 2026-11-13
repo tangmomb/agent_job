@@ -32,8 +32,11 @@ from .browser import BrowserSession, session_file
 from .config import ROOT, load_profile, settings
 from .scheduler import DATA, DEFAULT_RYTHME, rythme, sleep_until, stop_requested
 from .sites import get_site
+from .models import JobOffer
 from .sites.base import JobSite, SessionExpired, SiteBlocked, location_ok
-from .tracker import APPLY_URL_COL, ATS_COL, CLOSED_STATUT, EASY_APPLY_COL, NIVEAUX, Tracker, job_id
+from .sites.linkedin import LinkedIn
+from .tracker import (APPLY_URL_COL, ATS_COL, CLOSED_STATUT, EASY_APPLY_COL, MANUAL_SHEET, NIVEAUX, Tracker,
+                      job_id)
 from .usage import Usage
 
 console = Console()
@@ -309,12 +312,13 @@ def discover(session: BrowserSession, tracker: Tracker, profile: dict, state: Ru
     r = rythme(profile)
     max_reads = int(r["max_offres_lues_par_session"])
     weights = DEFAULT_RYTHME["parts_par_site"] | (r.get("parts_par_site") or {})
-    found: list[dict] = []
+    found: list[dict] = discover_manual(session, tracker, profile, state)  # liens collés à la main, avant les recherches
+    manual = len(found)  # hors quota de max_offres_lues_par_session
     for i, name in enumerate(names):
-        if stop_requested() or len(found) >= max_reads:
+        if stop_requested() or len(found) - manual >= max_reads:
             break
         left = sum(float(weights.get(n, 0)) for n in names[i:])  # sites en pause : leur part va aux autres
-        share = math.ceil((max_reads - len(found)) * float(weights.get(name, 0)) / left) if left else 0
+        share = math.ceil((max_reads - len(found) + manual) * float(weights.get(name, 0)) / left) if left else 0
         if share <= 0:
             continue
         found += discover_site(get_site(name, session), session, tracker, profile, state, share)
@@ -367,7 +371,7 @@ def discover_site(site: JobSite, session: BrowserSession, tracker: Tracker, prof
                     console.print(f"[dim]  ignorée (lieu hors recherche) : {o.title} — {o.location}")
                     continue
                 try:
-                    text = site.fetch_description(o.url)
+                    rec = read_offer(site, tracker, o, excluded, banned)
                 except (SiteBlocked, SessionExpired) as e:
                     note_block(state, site.name, e)
                     return found
@@ -375,34 +379,109 @@ def discover_site(site: JobSite, session: BrowserSession, tracker: Tracker, prof
                     state.incidents.append(f"lecture {o.url} : {type(e).__name__}: {e}"[:300])
                     console.print(f"[yellow]  offre illisible, ignorée : {o.title} ({type(e).__name__})")
                     continue
-                o = site.refine(o)
-                if o.company.lower() in excluded:
-                    continue
-                if word := title_excluded(o.title, banned):  # titre exact connu après lecture (WTTJ)
-                    console.print(f"[dim]  ignorée (« {word} » dans le titre) : {o.title}")
-                    continue
-                easy = o.easy_apply or site.has_easy_apply()  # carte de résultat, sinon bouton de l'offre
-                site.read_offer()  # temps de lecture (LinkedIn : en faisant défiler la description)
-                external = {}
-                closed = site.is_closed()
-                if closed:  # « offre fermée » tout de suite : pas d'évaluation par le LLM (compte comme page lue)
-                    external = {ATS_COL: ats.CLOSED}
-                    console.print("[dim]  offre fermée aux candidatures")
-                elif easy:
-                    external = {ATS_COL: site.easy_label, APPLY_URL_COL: o.url}
-                elif easy is False:  # candidature sur le site de l'entreprise : relever l'ATS (mesure, rien n'est envoyé)
-                    link = ats.unwrap(site.external_apply_url())
-                    if link:
-                        external = {ATS_COL: ats.detect(link), APPLY_URL_COL: link}
-                        console.print(f"[dim]  candidature externe : {external[ATS_COL]}")
-                if not closed:
-                    OFFERS_DIR.mkdir(parents=True, exist_ok=True)
-                    (OFFERS_DIR / f"{job_id(o.url)}.txt").write_text(text, encoding="utf-8")
-                tracker.upsert(o.url, site=o.site, titre=o.title, entreprise=o.company, lieu=o.location,
-                               statut=CLOSED_STATUT if closed else "à étudier",
-                               notes=f"Offre fermée aux candidatures ({site.name})." if closed else PENDING_NOTE,
-                               **{EASY_APPLY_COL: {True: "oui", False: "non"}.get(easy, "")}, **external)
-                found.append({"url": o.url, "titre": o.title, "entreprise": o.company, "lieu": o.location})
+                if rec:
+                    found.append(rec)
+    return found
+
+
+def read_offer(site: JobSite, tracker: Tracker, o: JobOffer, excluded: set[str], banned: list[str]) -> dict | None:
+    """Ouvre et lit l'offre, l'inscrit au Sheet (« à étudier », ou « offre fermée ») et garde son annonce pour le lot.
+
+    Renvoie l'offre inscrite, ou None si elle est écartée par l'entreprise ou le titre (exclusions du profil).
+    """
+    text = site.fetch_description(o.url)
+    o = site.refine(o)
+    if o.company.lower() in excluded:
+        return None
+    if word := title_excluded(o.title, banned):  # titre exact connu après lecture (WTTJ)
+        console.print(f"[dim]  ignorée (« {word} » dans le titre) : {o.title}")
+        return None
+    easy = o.easy_apply or site.has_easy_apply()  # carte de résultat, sinon bouton de l'offre
+    site.read_offer()  # temps de lecture (LinkedIn : en faisant défiler la description)
+    external = {}
+    closed = site.is_closed()
+    if closed:  # « offre fermée » tout de suite : pas d'évaluation par le LLM (compte comme page lue)
+        external = {ATS_COL: ats.CLOSED}
+        console.print("[dim]  offre fermée aux candidatures")
+    elif easy:
+        external = {ATS_COL: site.easy_label, APPLY_URL_COL: o.url}
+    elif easy is False:  # candidature sur le site de l'entreprise : relever l'ATS (mesure, rien n'est envoyé)
+        link = ats.unwrap(site.external_apply_url())
+        if link:
+            external = {ATS_COL: ats.detect(link), APPLY_URL_COL: link}
+            console.print(f"[dim]  candidature externe : {external[ATS_COL]}")
+    if not closed:
+        OFFERS_DIR.mkdir(parents=True, exist_ok=True)
+        (OFFERS_DIR / f"{job_id(o.url)}.txt").write_text(text, encoding="utf-8")
+    tracker.upsert(o.url, site=o.site, titre=o.title, entreprise=o.company, lieu=o.location,
+                   statut=CLOSED_STATUT if closed else "à étudier",
+                   notes=f"Offre fermée aux candidatures ({site.name})." if closed else PENDING_NOTE,
+                   **{EASY_APPLY_COL: {True: "oui", False: "non"}.get(easy, "")}, **external)
+    return {"url": o.url, "titre": o.title, "entreprise": o.company, "lieu": o.location, "closed": closed}
+
+
+MANUAL_SITES = ("linkedin", "wttj")  # liens acceptés dans l'onglet ajout_lien_manuel
+
+
+def discover_manual(session: BrowserSession, tracker: Tracker, profile: dict, state: RunState) -> list[dict]:
+    """Liens d'offre LinkedIn ou WTTJ collés à la main dans l'onglet ajout_lien_manuel, lus avant les recherches.
+
+    Une offre comme une autre (pour ne pas la manquer faute d'être tombé dessus) : lue, filtrée (titre,
+    entreprise), inscrite au suivi « à étudier » puis évaluée dans le même lot. Le lien est retiré de l'onglet
+    une fois traité ; il y reste si son site est en pause ou bloqué, ou si l'offre est illisible (session suivante).
+    """
+    try:
+        links = tracker.manual_links()
+    except Exception as e:  # l'onglet ne doit jamais empêcher la recherche
+        state.incidents.append(f"onglet {MANUAL_SHEET} : {type(e).__name__}: {e}"[:300])
+        return []
+    if not links:
+        return []
+    console.print(f"[cyan]🔗 {len(links)} lien(s) dans l'onglet {MANUAL_SHEET}")
+    rech = profile.get("recherche", {})
+    excluded = {e.lower() for e in rech.get("entreprises_exclues", [])}
+    banned = [str(w) for w in rech.get("mots_exclus_titre") or []]
+    sites = {n: get_site(n, session) for n in MANUAL_SITES}
+    found: list[dict] = []
+    done: list[int] = []  # lignes à retirer de l'onglet
+    blocked: set[str] = set()
+    for row, link in links:
+        if stop_requested():
+            break
+        name = next((n for n, site in sites.items() if site.owns(link)), None)
+        if name is None:
+            state.incidents.append(f"{MANUAL_SHEET} : lien non pris en charge (LinkedIn ou WTTJ seulement) : {link}"[:300])
+            continue
+        if name in blocked or site_paused_until(name):
+            continue
+        site = sites[name]
+        url = site.canonical(link) if isinstance(site, LinkedIn) else link.split("?")[0].split("#")[0]
+        if not job_id(url).startswith(f"{name}-"):  # page du site qui n'est pas une offre (recherche, entreprise…)
+            state.incidents.append(f"{MANUAL_SHEET} : pas un lien d'offre : {link}"[:300])
+            continue
+        if tracker.exists(url):  # déjà au suivi
+            done.append(row)
+            continue
+        if found:
+            session.pause(8, 20)
+        try:
+            rec = read_offer(site, tracker, JobOffer(site=name, title="", url=url), excluded, banned)
+        except (SiteBlocked, SessionExpired) as e:
+            note_block(state, name, e)
+            blocked.add(name)
+            continue
+        except Exception as e:  # offre illisible : le lien reste dans l'onglet
+            state.incidents.append(f"lecture {url} : {type(e).__name__}: {e}"[:300])
+            console.print(f"[yellow]  offre illisible, lien gardé : {url} ({type(e).__name__})")
+            continue
+        done.append(row)
+        if rec:
+            console.print(f"[green]🔗 {rec['titre']} — {rec['entreprise']} ajoutée (lien manuel)")
+            found.append(rec)
+    try:
+        tracker.remove_manual(done)
+    except Exception as e:
+        state.incidents.append(f"onglet {MANUAL_SHEET} : {type(e).__name__}: {e}"[:300])
     return found
 
 

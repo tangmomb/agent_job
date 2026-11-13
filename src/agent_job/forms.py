@@ -225,7 +225,11 @@ class FormDriver:
         """Joint le CV ; la lecture stable qui suit montre au LLM ce que le site affiche (nom du CV, erreur)."""
         if not self.cv_path or not self.cv_path.exists():
             raise FileNotFoundError(f"CV introuvable : {self.cv_path}")
-        self._el(ref).set_input_files(str(self.cv_path), timeout=10_000)
+        self.upload_file(ref, self.cv_path)
+
+    def upload_file(self, ref: str, path: Path) -> None:
+        """Joint un fichier (CV, lettre en PDF) dans un champ fichier."""
+        self._el(ref).set_input_files(str(path), timeout=10_000)
         self.session.pause(1.5, 3)
 
     def capture(self, label: str) -> None:

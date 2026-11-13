@@ -1591,8 +1591,8 @@
                 <b>Google Sheets API</b> activée, puis <i>IAM › Comptes de
                 service</i> › clé JSON ; partager ensuite le Sheet avec l'adresse
                 <code>…@….iam.gserviceaccount.com</code> du compte, en éditeur.
-                Les en-têtes et l'onglet <code>journal</code> sont créés au
-                premier lancement.
+                Les en-têtes et les onglets <code>journal</code> et
+                <code>ajout_lien_manuel</code> sont créés au premier lancement.
               </p>
             </div>
           </li>
@@ -1688,7 +1688,7 @@
             <div class="cmd-main">
               <pre id="c4">.venv/Scripts/agent-job tracker</pre>
               <div class="what">
-                Teste la connexion au Sheet (en-têtes et onglet journal).
+                Teste la connexion au Sheet (en-têtes et onglet ajout_lien_manuel).
               </div>
             </div>
             <button class="copy" data-target="c4" type="button">Copier</button>
@@ -1789,6 +1789,21 @@
               <p class="caption">
                 Avec cette mémoire, l'agent saura si une offre est déjà dans le
                 Sheet ou non (fonctionnement détaillé ci-dessous).
+              </p>
+              <p>
+                Avant d'aller sur les sites, il regarde l'onglet
+                <code>ajout_lien_manuel</code> du Sheet : les liens d'offres
+                <span class="brand linkedin">LinkedIn</span> ou
+                <span class="brand wttj">WTTJ</span> trouvés soi-même, un par
+                ligne dans son unique colonne <code>lien</code>, pour ne pas
+                manquer une offre repérée faute d'être tombé dessus. Chaque lien
+                est ouvert et lu comme une offre trouvée par une recherche (mêmes
+                filtres de titre et d'entreprise, hors des 20 offres de la
+                session), inscrit au suivi « à étudier », puis suit exactement
+                le même parcours que les autres. Une fois traité, le lien
+                disparaît de l'onglet ; il y reste si son site est en pause ou
+                bloqué, ou si l'offre n'a pas pu être lue, et sera repris à la
+                session suivante.
               </p>
               <p>
                 Il cherche ensuite de nouvelles offres : sur chaque site,
@@ -2892,7 +2907,10 @@ d&#x27;AI Applied Engineer et souhaiterions échanger avec vous…</pre
                     ></span
                   >. Python demande à Playwright de retrouver l'élément par son
                   attribut et d'exécuter l'action (saisie, choix dans une liste,
-                  case, envoi du CV, clic).
+                  case, envoi du CV ou de la lettre en PDF, clic). La lettre
+                  préparée est toujours jointe, même quand le champ est
+                  facultatif : collée dans une zone de texte (WTTJ), ou en PDF
+                  dans un champ fichier (LinkedIn).
                   <p>
                     <b>Python ne renvoie pas la conversation</b> : chaque
                     requête contient le même prompt système (consignes, profil,
@@ -2969,8 +2987,9 @@ d&#x27;AI Applied Engineer et souhaiterions échanger avec vous…</pre
                       Le tout va dans un dossier par offre,
                       <code
                         >data/captures/&lt;entreprise&gt;_&lt;poste&gt;_&lt;id&gt;/</code
-                      >, avec <code>journal.txt</code> et un raccourci vers
-                      l'annonce. Le LLM ne voit jamais ces images : elles ne
+                      >, avec <code>journal.txt</code>, un raccourci vers
+                      l'annonce et, si elle a été jointe en fichier, la lettre
+                      en PDF. Le LLM ne voit jamais ces images : elles ne
                       servent qu'à la relecture.
                     </p>
                   </div>
@@ -2978,7 +2997,7 @@ d&#x27;AI Applied Engineer et souhaiterions échanger avec vous…</pre
                     <div class="tools-title">
                       Les outils du LLM
                       <span
-                        >8 outils, descriptions envoyées au LLM avec chaque
+                        >9 outils, descriptions envoyées au LLM avec chaque
                         requête · clic pour déplier</span
                       >
                     </div>
@@ -3129,6 +3148,35 @@ d&#x27;AI Applied Engineer et souhaiterions échanger avec vous…</pre
                             → Python colle lui-même la lettre du Sheet : le LLM
                             ne la recopie pas, donc ne peut pas la
                             réécrire</span
+                          >
+                        </div>
+                      </details>
+                      <details class="tool">
+                        <summary>
+                          <code class="t-name">form_upload_letter</code
+                          ><span class="t-desc"
+                            >Joint la lettre de motivation préparée (celle du
+                            Sheet), en PDF, dans un champ fichier « lettre de
+                            motivation ».</span
+                          >
+                        </summary>
+                        <div class="t-body">
+                          <div class="t-label">Paramètres</div>
+                          <ul class="t-params">
+                            <li>
+                              <code>ref</code>
+                              <span class="t-type">string</span> : Référence du
+                              champ fichier de la lettre de motivation.
+                            </li>
+                          </ul>
+                          <div class="t-label">Exemple</div>
+                          <code class="t-ex"
+                            >form_upload_letter(ref=&quot;f9&quot;)</code
+                          ><span class="t-effect">
+                            → LinkedIn « Cover letter » : Python écrit la lettre
+                            du Sheet dans « Lettre de motivation - Prénom
+                            Nom.pdf » et la joint. La lettre est toujours jointe,
+                            même quand le champ est facultatif</span
                           >
                         </div>
                       </details>

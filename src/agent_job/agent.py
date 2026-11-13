@@ -22,6 +22,7 @@ from rich.console import Console
 
 from .browser import BrowserSession
 from .config import ROOT, load_profile, settings
+from .letter_pdf import write_letter_pdf
 from .forms import FormDriver
 from .sites import get_site, site_for_url
 from .sites.base import JobSite, SessionExpired, SiteBlocked
@@ -75,9 +76,11 @@ Règles :
   la question.
 - CV : il est souvent déjà sélectionné (CV enregistré sur le site, nom affiché, case cochée) ; dans ce cas ne le
   recharge pas. Utilise `form_upload_cv` seulement si un champ fichier demande un CV et qu'aucun n'est sélectionné.
-- Champ lettre de motivation : appelle `form_paste_letter`, qui colle exactement la lettre préparée ci-dessous (celle
-  du Sheet). Ne la recopie, ne la résume et ne la réécris jamais avec `form_fill`. Sans lettre préparée (« (aucune) ») :
-  `form_skip` si le champ est facultatif, abandon s'il est obligatoire.
+- Lettre de motivation : joins toujours la lettre préparée ci-dessous (celle du Sheet), même si le champ est
+  facultatif. Zone de texte : `form_paste_letter`, qui la colle mot pour mot ; ne la recopie, ne la résume et ne la
+  réécris jamais avec `form_fill`. Champ fichier (type "file" : « Cover letter », « Lettre de motivation »,
+  « Télécharger la lettre de motivation ») : `form_upload_letter`, qui la joint en PDF ; ne mets jamais le CV à sa
+  place. Sans lettre préparée (« (aucune) ») : `form_skip` si le champ est facultatif, abandon s'il est obligatoire.
 - Champ de type "autocomplete" : un seul `form_fill` suffit, il choisit la 1re suggestion et te renvoie la valeur retenue.
   Ne clique jamais sur un bouton « Effacer la valeur… » pour fermer une liste. Les refs sont stables d'une lecture à
   l'autre ; un champ déjà rempli n'est pas à ressaisir. Liste déroulante sans <select> (combobox) : clique-la, ses
@@ -119,7 +122,7 @@ une réponse à part, après avoir vérifié le formulaire ; après une liste à
 pour que tu vérifies la valeur retenue."""
 
 APPLY_TOOLS = ["form_fill", "form_select", "form_check",
-               "form_upload_cv", "form_paste_letter", "form_click", "form_skip", "finish_application"]
+               "form_upload_cv", "form_paste_letter", "form_upload_letter", "form_click", "form_skip", "finish_application"]
 
 
 _JSON_TYPES = {str: "string", int: "integer", float: "number", bool: "boolean"}
@@ -389,6 +392,21 @@ def build_tools(session: BrowserSession, tracker: Tracker, profile: dict, state:
         forms.fill(ref, state.letter)
         return f"Lettre préparée collée ({len(state.letter)} caractères)."
 
+    def form_upload_letter(ref: str) -> str:
+        """Joint la lettre de motivation préparée (celle du Sheet), en PDF, dans un champ fichier « lettre de motivation ».
+
+        Args:
+            ref: Référence du champ fichier de la lettre de motivation.
+        """
+        _guard_form()
+        if not state.letter.strip():
+            return "Erreur : aucune lettre préparée pour cette offre."
+        name = profile.get("candidat", {}).get("nom", "").strip()
+        folder = forms.capture_dir or settings.letters_dir
+        pdf = write_letter_pdf(state.letter, folder / f"Lettre de motivation{' - ' + name if name else ''}.pdf")
+        forms.upload_file(ref, pdf)
+        return f"Lettre jointe en PDF ({pdf.name}) : vérifie dans l'état actuel qu'elle apparaît bien."
+
     def form_click(ref: str) -> str:
         """Clique sur un bouton (Suivant, Vérifier, Envoyer...) ou sur une option de liste.
 
@@ -442,7 +460,7 @@ def build_tools(session: BrowserSession, tracker: Tracker, profile: dict, state:
         return json.dumps(tracker.rows(status or None)[-50:], ensure_ascii=False, default=str)
 
     fns = [search_jobs, get_job_details, save_to_tracker, save_cover_letter, start_application,
-           form_fill, form_select, form_check, form_upload_cv, form_paste_letter, form_click, form_skip,
+           form_fill, form_select, form_check, form_upload_cv, form_paste_letter, form_upload_letter, form_click, form_skip,
            finish_application, list_tracker, interrupt_application, _form_state, _save_request]
     return {f.__name__: f for f in fns}
 
@@ -586,6 +604,7 @@ class ApplyJournal:
             "form_check": "coché" if as_bool(args.get("checked", True)) else "décoché",
             "form_upload_cv": "← CV",
             "form_paste_letter": "← lettre préparée",
+            "form_upload_letter": "← lettre en PDF",
             "form_click": "cliqué",
             "form_skip": f"laissé vide ({_short(args.get('reason', ''), 80)})",
             "finish_application": f"candidature close (sent={as_bool(args.get('sent'))})",

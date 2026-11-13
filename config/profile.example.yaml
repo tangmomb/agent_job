@@ -57,6 +57,8 @@ reponses:
   autorise_a_travailler_en_france: true
   besoin_de_sponsorship_visa: false
   permis_b: true
+  anglais_courant: true # « Fluent in English? », « Parlez-vous anglais couramment ? » : oui
+  niveau_anglais: "C1" # niveau CECRL à donner (« English level », liste A1 à C2) : jamais au-dessus
   accepte_deplacements: "occasionnels"
   niveau_etudes: "Bac+5 (Master informatique)"
   genre_diversite: "Je préfère ne pas répondre"

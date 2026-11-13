@@ -33,6 +33,8 @@ LETTER_TEXT_COL = "texte_lettre"  # texte complet de la lettre (le fichier reste
 ATS_COL = "ats"  # outil de recrutement derrière « Postuler » (offres sans candidature simplifiée)
 MAIL_LINKS_COL = "echanges_mail"  # liens des e-mails de l'offre (accusé, action requise, refus, entretien), un par ligne
 APPLY_URL_COL = "lien_candidature"  # adresse de ce formulaire
+MANUAL_SHEET = "ajout_lien_manuel"  # liens d'offres collés à la main, lus avant les recherches
+MANUAL_HEADER = "lien"
 JOURNAL_SHEET = "journal"
 JOURNAL_COLUMNS = ["début", "fin", "candidatures envoyées", "abandons", "incidents", "récapitulatif",
                    "appels évaluation", "tokens évaluation", "appels candidatures", "tokens candidatures",
@@ -377,6 +379,31 @@ class Tracker:
                        (ue.cached if ue else 0) + (ua.cached if ua else 0),
                        round((ue.cost if ue else 0) + (ua.cost if ua else 0), 4)],
                       value_input_option="RAW")
+
+    # -- onglet ajout_lien_manuel ------------------------------------------------
+    def _manual_ws(self) -> gspread.Worksheet:
+        """Onglet « ajout_lien_manuel » (créé au besoin), une seule colonne : lien."""
+        try:
+            ws = self.spreadsheet.worksheet(MANUAL_SHEET)
+        except gspread.WorksheetNotFound:
+            ws = self.spreadsheet.add_worksheet(MANUAL_SHEET, rows=200, cols=1)
+            ws.freeze(rows=1)
+        if ws.acell("A1").value != MANUAL_HEADER:
+            ws.update([[MANUAL_HEADER]], "A1")
+            ws.format("A1", {"textFormat": {"bold": True}})
+        self._manual = ws
+        return ws
+
+    def manual_links(self) -> list[tuple[int, str]]:
+        """Liens d'offre collés à la main dans l'onglet : (n° de ligne, lien)."""
+        rows = self._manual_ws().col_values(1)[1:]
+        return [(i, v.strip()) for i, v in enumerate(rows, start=2) if v.strip().startswith("http")]
+
+    def remove_manual(self, rows: list[int]) -> None:
+        """Retire de l'onglet les liens traités (l'offre est passée dans le suivi)."""
+        ws = getattr(self, "_manual", None) or self._manual_ws()
+        for row in sorted(set(rows), reverse=True):  # du bas vers le haut : les numéros restent valables
+            ws.delete_rows(row)
 
     def append_note(self, url: str, text: str) -> None:
         """Ajoute un texte aux notes d'une offre (sans effacer l'existant)."""
