@@ -246,7 +246,7 @@ class LinkedIn(JobSite):
             geo = self.GEO_IDS[loc.lower()]
         elif loc:
             query = f"{keywords} à {loc}"
-        url = f"{self.base_url}/jobs/search/?keywords={quote_plus(query)}&f_TPR=r2592000"  # 30 derniers jours
+        url = f"{self.base_url}/jobs/search/?keywords={quote_plus(query)}&f_TPR=r2592000&sortBy=DD"  # 30 derniers jours, de la plus récente à la plus ancienne
         if loc:
             url += f"&location={quote_plus('France' if loc.lower() in self.REMOTE else loc)}"  # interface visiteur
         if geo:
