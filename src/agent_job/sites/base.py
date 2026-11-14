@@ -24,18 +24,35 @@ CHALLENGE_MARKERS = (
 )
 
 REMOTE_WANTED = {"remote", "télétravail", "teletravail", "full remote", "à distance", "a distance"}
-IDF = re.compile(
-    r"paris|île-de-france|ile-de-france|hauts-de-seine|seine-saint-denis|val-de-marne|yvelines|essonne|val-d.oise|"
+IDF = re.compile(  # mots entiers : « buc » ne doit pas prendre « Bucarest »
+    r"\b(?:paris|île-de-france|ile-de-france|hauts-de-seine|seine-saint-denis|val-de-marne|yvelines|essonne|val-d.oise|"
     r"seine-et-marne|courbevoie|boulogne|levallois|neuilly|charenton|vanves|issy|nanterre|puteaux|la défense|"
     r"la defense|saint-denis|saint denis|montrouge|clichy|ivry|vincennes|rueil|suresnes|saint-cloud|saint cloud|massy|"
     r"versailles|maisons-laffitte|marne-la-vallée|cergy|évry|evry|saint-ouen|saint ouen|malakoff|gennevilliers|"
     r"colombes|bagneux|châtillon|chatillon|meudon|sèvres|sevres|montreuil|pantin|velizy|vélizy|guyancourt|saclay|"
-    r"palaiseau|arcueil|gentilly|kremlin|bobigny|fontenay|nogent|rosny|noisy|créteil|creteil|clamart|antony", re.I)
+    r"palaiseau|arcueil|gentilly|kremlin|bobigny|fontenay|nogent|rosny|noisy|créteil|creteil|clamart|antony|"
+    r"alfortville|maisons-alfort|vitry|villejuif|cachan|saint-maur|saint-mandé|saint-mande|joinville|champigny|"
+    r"aubervilliers|bagnolet|les lilas|romainville|le pré-saint-gervais|drancy|bondy|aulnay|villepinte|roissy|"
+    r"argenteuil|sartrouville|poissy|saint-germain-en-laye|le chesnay|chatou|bezons|asnières|asnieres|"
+    r"bois-colombes|la garenne|villeneuve-la-garenne|châtenay|chatenay|le plessis-robinson|sceaux|bourg-la-reine|"
+    r"fresnes|rungis|orly|thiais|choisy|juvisy|corbeil|les ulis|orsay|gif-sur-yvette|bures-sur-yvette|"
+    r"saint-quentin-en-yvelines|montigny-le-bretonneux|trappes|plaisir|élancourt|elancourt|mantes|"
+    r"chessy|serris|torcy|noisiel|champs-sur-marne|lognes|meaux|melun|fontainebleau|"
+    r"les clayes|clayes-sous-bois|bois-d.arcy|fontenay-le-fleury|buc|jouy-en-josas|les mureaux|magny-les-hameaux|"
+    r"voisins-le-bretonneux|saint-cyr-l.ecole|le pecq|croissy|houilles|carrières|carrieres|conflans|achères|acheres|"
+    r"saint-michel-sur-orge|brétigny|bretigny|sainte-geneviève|sainte-genevieve|villebon|nozay|marcoussis|lisses|"
+    r"wissous|chilly-mazarin|longjumeau|morangis|athis-mons|savigny-sur-orge|draveil|"
+    r"(?:75|77|78|91|92|93|94|95)\d{3})\b", re.I)
 REMOTE_LOC = re.compile(r"distance|remote|télétravail|teletravail", re.I)
 
 
-def location_ok(found: str, wanted: str) -> bool:
-    """Le lieu de l'offre correspond-il au lieu cherché ? (Paris = toute l'Île-de-France, Remote = à distance)"""
+def location_ok(found: str, wanted: str | list[str]) -> bool:
+    """Le lieu de l'offre correspond-il à l'un des lieux cherchés ? (Paris = toute l'Île-de-France, Remote = à distance)
+
+    `wanted` peut être la liste des lieux du profil : une offre parisienne remontée par la recherche « Remote »
+    reste bonne à prendre si Paris fait aussi partie des lieux voulus."""
+    if isinstance(wanted, (list, tuple)):
+        return not wanted or any(location_ok(found, w) for w in wanted)
     w = wanted.strip().lower()
     if not w or not found.strip():
         return True  # lieu inconnu : on laisse le LLM juger

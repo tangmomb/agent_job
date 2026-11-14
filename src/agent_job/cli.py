@@ -36,7 +36,8 @@ def login(
         state = _login_normal_chrome(SITES[site].login_url)
     else:
         channel = None if browser == "chromium" else browser
-        with BrowserSession(headless=False, persist=False, channel=channel) as session:
+        # Navigateur vierge : jamais connecté d'avance avec la session enregistrée (changement de compte possible)
+        with BrowserSession(headless=False, persist=False, channel=channel, fresh=True) as session:
             session.goto(get_site(site, session).login_url)
             input("Connectez-vous dans le navigateur, puis appuyez sur Entrée ici… ")
             state = session.context.storage_state()

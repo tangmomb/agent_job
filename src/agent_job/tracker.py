@@ -35,6 +35,8 @@ MAIL_LINKS_COL = "echanges_mail"  # liens des e-mails de l'offre (accusé, actio
 APPLY_URL_COL = "lien_candidature"  # adresse de ce formulaire
 MANUAL_SHEET = "ajout_lien_manuel"  # liens d'offres collés à la main, lus avant les recherches
 MANUAL_HEADER = "lien"
+SKIPPED_SHEET = "offres_ecartees"  # offres écartées sans être lues (titre, lieu, illisible), avec la raison
+SKIPPED_COLUMNS = ["date", "site", "titre", "entreprise", "lieu", "raison", "url"]
 JOURNAL_SHEET = "journal"
 JOURNAL_COLUMNS = ["début", "fin", "candidatures envoyées", "abandons", "incidents", "récapitulatif",
                    "appels évaluation", "tokens évaluation", "appels candidatures", "tokens candidatures",
@@ -361,6 +363,7 @@ class Tracker:
     def log_run(self, started, ended, applied: int, abandoned: int, incidents: str, summary: str,
                 usage_eval=None, usage_apply=None) -> None:
         """Ajoute une ligne dans l'onglet « journal » (créé au besoin) : suivi des sessions à distance."""
+        self.flush_skipped()  # écartées des liens manuels, notées hors des recherches
         try:
             ws = self.spreadsheet.worksheet(JOURNAL_SHEET)
         except gspread.WorksheetNotFound:
@@ -380,6 +383,50 @@ class Tracker:
                        (ue.cached if ue else 0) + (ua.cached if ua else 0),
                        round((ue.cost if ue else 0) + (ua.cost if ua else 0), 4)],
                       value_input_option="RAW")
+
+    # -- onglet offres_ecartees ------------------------------------------------
+    def _skipped_ws(self) -> gspread.Worksheet:
+        """Onglet « offres_ecartees » (créé au besoin) ; garde en mémoire les liens déjà notés."""
+        if getattr(self, "_skipped", None) is not None:
+            return self._skipped
+        try:
+            ws = self.spreadsheet.worksheet(SKIPPED_SHEET)
+        except gspread.WorksheetNotFound:
+            ws = self.spreadsheet.add_worksheet(SKIPPED_SHEET, rows=1000, cols=len(SKIPPED_COLUMNS))
+            ws.freeze(rows=1)
+        end = rowcol_to_a1(1, len(SKIPPED_COLUMNS))
+        if ws.row_values(1) != SKIPPED_COLUMNS:
+            ws.update([SKIPPED_COLUMNS], f"A1:{end}")
+            ws.format(f"A1:{end}", {"textFormat": {"bold": True}})
+        col = SKIPPED_COLUMNS.index("url") + 1
+        self._skipped_urls = set(ws.col_values(col)[1:])
+        self._skipped = ws
+        return ws
+
+    def note_skipped(self, site: str, title: str, company: str, location: str, reason: str, url: str) -> None:
+        """Note une offre écartée (une fois par lien) ; écrite par lots avec flush_skipped (quota de l'API)."""
+        try:
+            self._skipped_ws()
+        except Exception:  # onglet inaccessible : la console suffit
+            return
+        if url in self._skipped_urls:
+            return
+        self._skipped_urls.add(url)
+        self._skipped_buffer = getattr(self, "_skipped_buffer", [])
+        self._skipped_buffer.append([date.today().isoformat(), site, title, company, location, reason, url])
+        if len(self._skipped_buffer) >= 20:
+            self.flush_skipped()
+
+    def flush_skipped(self) -> None:
+        """Écrit dans l'onglet les offres écartées en attente."""
+        rows = getattr(self, "_skipped_buffer", [])
+        if not rows:
+            return
+        self._skipped_buffer = []
+        try:
+            self._skipped.append_rows(rows, value_input_option="RAW")
+        except Exception:
+            pass
 
     # -- onglet ajout_lien_manuel ------------------------------------------------
     def _manual_ws(self) -> gspread.Worksheet:

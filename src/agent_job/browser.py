@@ -71,9 +71,11 @@ def save_storage_state(state: dict, only_site: str | None = None, since: float |
 
 
 class BrowserSession:
-    def __init__(self, headless: bool | None = None, persist: bool = True, channel: str | None = None) -> None:
+    def __init__(self, headless: bool | None = None, persist: bool = True, channel: str | None = None,
+                 fresh: bool = False) -> None:
         self.headless = settings.headless if headless is None else headless
         self.persist = persist
+        self.fresh = fresh  # navigateur vierge, sans les sessions enregistrées (connexion à un autre compte)
         # "chrome" / "msedge" : navigateur installé au lieu du Chromium de Playwright (BROWSER_CHANNEL)
         self.channel = channel if channel is not None else (settings.browser_channel or None)
         self._pw: Playwright | None = None
@@ -91,7 +93,7 @@ class BrowserSession:
                 raise
             self._browser = self._pw.chromium.launch(headless=self.headless)  # navigateur absent : Chromium
         self._ctx = self._browser.new_context(
-            storage_state=load_storage_state(),
+            storage_state=None if self.fresh else load_storage_state(),
             locale="fr-FR",
             timezone_id="Europe/Paris",
             viewport={"width": 1366, "height": 900},

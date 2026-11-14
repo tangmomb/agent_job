@@ -1592,7 +1592,9 @@
                 service</i> › clé JSON ; partager ensuite le Sheet avec l'adresse
                 <code>…@….iam.gserviceaccount.com</code> du compte, en éditeur.
                 Les en-têtes et les onglets <code>journal</code> et
-                <code>ajout_lien_manuel</code> sont créés au premier lancement.
+                <code>ajout_lien_manuel</code> sont créés au premier lancement ;
+                l'onglet <code>offres_ecartees</code> à la première offre
+                écartée.
               </p>
             </div>
           </li>
@@ -1609,7 +1611,9 @@
                 main, l'agent garde seulement les cookies de session (jamais le
                 mot de passe) dans
                 <code>config/sessions/&lt;site&gt;.json</code>. À refaire si un
-                site déconnecte la session.
+                site déconnecte la session, ou pour changer de compte sur
+                LinkedIn et WTTJ : Chrome s'ouvre vierge, jamais connecté
+                d'avance, et la nouvelle session remplace l'ancienne.
               </p>
               <div class="cmds cmds-row term">
                 <div class="cmd">
@@ -2268,8 +2272,10 @@ url = <span class="py-str">f"https://www.linkedin.com/jobs/view/{numero}/"</span
                   <ul>
                     <li>son <code>id</code> n'est pas encore dans le Sheet.</li>
                     <li>
-                      son entreprise n'est pas dans
-                      <code>entreprises_exclues</code> ;
+                      le nom de son entreprise ne contient aucun nom de
+                      <code>entreprises_exclues</code> (mots entiers, sans
+                      accents ni majuscules : « ministère » écarte « Ministère
+                      des Armées ») ;
                     </li>
                     <li>
                       son titre ne contient aucun mot de
@@ -2279,8 +2285,16 @@ url = <span class="py-str">f"https://www.linkedin.com/jobs/view/{numero}/"</span
                       ni inscrite au Sheet ;
                     </li>
                     <li>
-                      son lieu correspond à la recherche (Paris = toute
-                      l'Île-de-France, Remote = à distance) ;
+                      son lieu correspond à l'un des lieux du profil, pas
+                      seulement à celui de la recherche en cours (Paris = toute
+                      l'Île-de-France, villes et codes postaux compris ;
+                      Remote = à distance) ;
+                    </li>
+                    <li>
+                      une offre écartée (entreprise exclue, mot exclu du
+                      titre, lieu hors recherche, offre illisible) est notée une fois dans
+                      l'onglet <code>offres_ecartees</code> : date, site,
+                      titre, entreprise, lieu, raison et lien ;
                     </li>
                     <li>
                       le plafond de 20 annonces ouvertes par session n'est pas

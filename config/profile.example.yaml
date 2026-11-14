@@ -17,7 +17,7 @@ recherche:
   contrats: [CDI]
   teletravail: "hybride ou full remote"
   salaire_min: 50000
-  entreprises_exclues: []
+  entreprises_exclues: []  # mots entiers, sans accents ni casse : [ministère, gouv] écarte « Ministère des Armées », « beta.gouv.fr »
   mots_exclus_titre: [senior, séniorité, stage, stagiaire, internship, intern, pfe, alternance, alternant] # offres ignorées dès la recherche (ni lues ni inscrites au Sheet)
   niveaux_a_postuler: [bon, moyen]  # match CV / offre (bon, moyen, faible) qui passe « à postuler »
   candidature_auto: false # true = l'agent remplit et envoie lui-même les candidatures intégrées (voir « Conditions d'utilisation » dans le README)

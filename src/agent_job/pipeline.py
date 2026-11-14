@@ -296,6 +296,12 @@ def title_excluded(title: str, words: list[str]) -> str:
     return next((w for w in words if set(re.findall(r"[a-z0-9]+", norm(w))) <= title_words and norm(w).strip()), "")
 
 
+def company_excluded(company: str, names: list[str]) -> str:
+    """Nom de recherche.entreprises_exclues présent dans le nom de l'entreprise (mots entiers, sans accents ni casse) :
+    « ministère » écarte « Ministère des Armées », « Ministere de l'Intérieur »… ; renvoie "" sinon."""
+    return title_excluded(company, names) if company else ""
+
+
 SEARCH_SITES = ["linkedin", "wttj", "indeed"]  # toujours les trois, dans cet ordre (pas de réglage dans le profil)
 
 
@@ -325,11 +331,25 @@ def discover(session: BrowserSession, tracker: Tracker, profile: dict, state: Ru
     return found
 
 
+def skip_offer(tracker: Tracker, o: JobOffer, reason: str, color: str = "dim") -> None:
+    """Offre écartée sans être lue : affichée dans la console et notée dans l'onglet offres_ecartees."""
+    console.print(f"[{color}]  ignorée ({reason}) : {o.title}" + (f" — {o.location}" if o.location else ""))
+    tracker.note_skipped(o.site, o.title, o.company, o.location, reason, o.url)
+
+
 def discover_site(site: JobSite, session: BrowserSession, tracker: Tracker, profile: dict, state: RunState,
                   max_reads: int) -> list[dict]:
+    try:
+        return _discover_site(site, session, tracker, profile, state, max_reads)
+    finally:
+        tracker.flush_skipped()
+
+
+def _discover_site(site: JobSite, session: BrowserSession, tracker: Tracker, profile: dict, state: RunState,
+                   max_reads: int) -> list[dict]:
     rech = profile.get("recherche", {})
     pages = max(1, int(rythme(profile).get("pages_par_recherche", 5)))
-    excluded = {e.lower() for e in rech.get("entreprises_exclues", [])}
+    excluded = [str(e) for e in rech.get("entreprises_exclues") or []]
     banned = [str(w) for w in rech.get("mots_exclus_titre") or []]  # ni lues, ni évaluées, ni inscrites au Sheet
     combos = [(k, l) for k in rech.get("mots_cles", []) for l in rech.get("lieux", [""])]
     random.shuffle(combos)  # varier les recherches d'une session à l'autre
@@ -362,13 +382,16 @@ def discover_site(site: JobSite, session: BrowserSession, tracker: Tracker, prof
                 if len(found) >= max_reads:
                     break
                 # tracker.exists couvre aussi les offres inscrites plus tôt dans la session (upsert met à jour la copie)
-                if tracker.exists(o.url) or o.company.lower() in excluded:
+                if tracker.exists(o.url):
+                    continue
+                if name := company_excluded(o.company, excluded):
+                    skip_offer(tracker, o, f"entreprise exclue (« {name} »)")
                     continue
                 if word := title_excluded(o.title, banned):
-                    console.print(f"[dim]  ignorée (« {word} » dans le titre) : {o.title}")
+                    skip_offer(tracker, o, f"« {word} » dans le titre")
                     continue
-                if not location_ok(o.location, location):  # LinkedIn ne respecte pas toujours le lieu demandé
-                    console.print(f"[dim]  ignorée (lieu hors recherche) : {o.title} — {o.location}")
+                if not location_ok(o.location, rech.get("lieux") or [location]):  # LinkedIn ne respecte pas toujours le lieu demandé
+                    skip_offer(tracker, o, "lieu hors recherche")
                     continue
                 try:
                     rec = read_offer(site, tracker, o, excluded, banned)
@@ -377,24 +400,25 @@ def discover_site(site: JobSite, session: BrowserSession, tracker: Tracker, prof
                     return found
                 except Exception as e:  # offre illisible (élément introuvable, délai dépassé) : la suivante
                     state.incidents.append(f"lecture {o.url} : {type(e).__name__}: {e}"[:300])
-                    console.print(f"[yellow]  offre illisible, ignorée : {o.title} ({type(e).__name__})")
+                    skip_offer(tracker, o, f"offre illisible ({type(e).__name__})", "yellow")
                     continue
                 if rec:
                     found.append(rec)
     return found
 
 
-def read_offer(site: JobSite, tracker: Tracker, o: JobOffer, excluded: set[str], banned: list[str]) -> dict | None:
+def read_offer(site: JobSite, tracker: Tracker, o: JobOffer, excluded: list[str], banned: list[str]) -> dict | None:
     """Ouvre et lit l'offre, l'inscrit au Sheet (« à étudier », ou « offre fermée ») et garde son annonce pour le lot.
 
     Renvoie l'offre inscrite, ou None si elle est écartée par l'entreprise ou le titre (exclusions du profil).
     """
     text = site.fetch_description(o.url)
     o = site.refine(o)
-    if o.company.lower() in excluded:
+    if name := company_excluded(o.company, excluded):  # nom exact connu après lecture
+        skip_offer(tracker, o, f"entreprise exclue (« {name} »)")
         return None
     if word := title_excluded(o.title, banned):  # titre exact connu après lecture (WTTJ)
-        console.print(f"[dim]  ignorée (« {word} » dans le titre) : {o.title}")
+        skip_offer(tracker, o, f"« {word} » dans le titre")
         return None
     easy = o.easy_apply or site.has_easy_apply()  # carte de résultat, sinon bouton de l'offre
     site.read_offer()  # temps de lecture (LinkedIn : en faisant défiler la description)
@@ -439,7 +463,7 @@ def discover_manual(session: BrowserSession, tracker: Tracker, profile: dict, st
         return []
     console.print(f"[cyan]🔗 {len(links)} lien(s) dans l'onglet {MANUAL_SHEET}")
     rech = profile.get("recherche", {})
-    excluded = {e.lower() for e in rech.get("entreprises_exclues", [])}
+    excluded = [str(e) for e in rech.get("entreprises_exclues") or []]
     banned = [str(w) for w in rech.get("mots_exclus_titre") or []]
     sites = {n: get_site(n, session) for n in MANUAL_SITES}
     found: list[dict] = []
