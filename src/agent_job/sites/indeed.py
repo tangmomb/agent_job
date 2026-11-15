@@ -34,7 +34,7 @@ class Indeed(JobSite):
         loc = location.strip()
         loc = "Télétravail" if loc.lower() in self.REMOTE else loc  # lieu « Télétravail » d'Indeed (offres à distance)
         url = f"{self.base_url}/jobs?q={quote_plus(keywords)}&l={quote_plus(loc)}"
-        url += "&fromage=14&sort=date"  # 14 derniers jours (maximum proposé par Indeed)
+        url += "&fromage=7&sort=date"  # 7 derniers jours
         return url + "&iafilter=1" if easy_apply else url
 
     _has_next = True  # la dernière page de résultats lue propose-t-elle une page suivante ?

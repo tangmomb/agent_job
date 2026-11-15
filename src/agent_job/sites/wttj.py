@@ -64,7 +64,7 @@ class WelcomeToTheJungle(JobSite):
     read_pause = (8, 20)  # entre deux pages d'offre : le pare-feu de WTTJ réagit aux lectures rapprochées
 
     SITEMAP_INDEX = "https://www.welcometothejungle.com/sitemaps/index.xml.gz"
-    MAX_AGE_DAYS = 30  # offres mises à jour depuis moins de 30 jours (comme la recherche LinkedIn)
+    MAX_AGE_DAYS = 7  # offres mises à jour depuis moins de 7 jours (comme la recherche LinkedIn)
     PAGE_SIZE = 25
     REMOTE_SLUG = {"remote", "teletravail", "distance"}  # « full-remote », « 100-teletravail », « a-distance »
 

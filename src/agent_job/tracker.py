@@ -22,7 +22,7 @@ from .config import settings
 COLUMNS = [
     "id", "date_ajout", "site", "titre", "entreprise", "lieu", "candidature_simplifiee", "url",
     "match", "statut", "date_candidature", "lettre", "notes", "texte_lettre", "ats", "lien_candidature",
-    "echanges_mail",
+    "echanges_mail_avec_entreprise",
 ]
 STATUTS = ["à étudier", "à postuler", "à postuler (manuel)", "candidature envoyée",
            "relance", "action requise", "entretien", "refus", "écartée", "offre fermée"]
@@ -31,7 +31,9 @@ NIVEAUX = ["bon", "moyen", "faible"]  # adéquation CV / offre
 EASY_APPLY_COL = "candidature_simplifiee"  # oui / non (vide : inconnu)
 LETTER_TEXT_COL = "texte_lettre"  # texte complet de la lettre (le fichier reste dans data/lettres/)
 ATS_COL = "ats"  # outil de recrutement derrière « Postuler » (offres sans candidature simplifiée)
-MAIL_LINKS_COL = "echanges_mail"  # liens des e-mails de l'offre (accusé, action requise, refus, entretien), un par ligne
+MAIL_LINKS_COL = "echanges_mail_avec_entreprise"  # e-mails de l'entreprise, pour n'importe laquelle de ses offres
+# (accusé, action requise, refus, entretien), un par ligne ; identique sur toutes les offres de l'entreprise
+OLD_MAIL_LINKS_COL = "echanges_mail"
 APPLY_URL_COL = "lien_candidature"  # adresse de ce formulaire
 MANUAL_SHEET = "ajout_lien_manuel"  # liens d'offres collés à la main, lus avant les recherches
 MANUAL_HEADER = "lien"
@@ -91,6 +93,7 @@ class Tracker:
         self._migrate_score_column()
         self._migrate_easy_apply_column()
         self._migrate_letter_text_column()
+        self._migrate_mail_links_column()
         self._migrate_trailing_columns()
         if not self._header_ok():
             self._init_header()
@@ -228,6 +231,13 @@ class Tracker:
         self.ws.update([[LETTER_TEXT_COL]], rowcol_to_a1(1, col + 1))
         self._clip_column(col)
         self._load()
+
+    def _migrate_mail_links_column(self) -> None:
+        """Ancien nom « echanges_mail » : en-tête renommé (le contenu ne change pas)."""
+        col = COLUMNS.index(MAIL_LINKS_COL)
+        if self._values and len(self._values[0]) > col and self._values[0][col] == OLD_MAIL_LINKS_COL:
+            self.ws.update([[MAIL_LINKS_COL]], rowcol_to_a1(1, col + 1))
+            self._load()
 
     def _migrate_trailing_columns(self) -> None:
         """Colonnes ajoutées en fin de tableau par une version plus récente (ats, lien_candidature…) : en-têtes ajoutés."""
@@ -461,6 +471,41 @@ class Tracker:
         current = self._values[row - 1]
         notes = current[COLUMNS.index("notes")] if len(current) > COLUMNS.index("notes") else ""
         self.upsert(url, notes=(f"{notes} | {text}" if notes else text)[:1000])
+
+    def update_many(self, changes: dict[str, dict[str, Any]]) -> None:
+        """Met à jour plusieurs lignes existantes ({url: champs}) en UN appel API (quota d'écriture : 60 par minute).
+
+        Quota dépassé (429) : nouvel essai après une minute, trois fois au plus.
+        """
+        import time
+
+        from gspread.exceptions import APIError
+
+        data, cache = [], {}
+        for url, fields in changes.items():
+            row = self._find_row(job_id(url))
+            if row is None or not fields:
+                continue
+            current = self._values[row - 1]
+            record = dict(zip(COLUMNS, current + [""] * (len(COLUMNS) - len(current))))
+            for name, value in fields.items():
+                if name in COLUMNS and name != "id" and value is not None:
+                    record[name] = value
+            values = [record[c] for c in COLUMNS]
+            data.append({"range": f"A{row}:{rowcol_to_a1(row, len(COLUMNS))}", "values": [values]})
+            cache[row] = [str(v) for v in values]
+        if not data:
+            return
+        for attempt in range(4):
+            try:
+                self.ws.batch_update(data, raw=True)
+                break
+            except APIError as e:
+                if attempt == 3 or "429" not in str(e):
+                    raise
+                time.sleep(60)
+        for row, values in cache.items():
+            self._values[row - 1] = values
 
     def upsert(self, url: str, **fields: Any) -> str:
         """Ajoute ou met à jour une ligne (clé = URL de l'offre), en un seul appel API."""

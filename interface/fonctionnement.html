@@ -1795,7 +1795,7 @@
               <ul class="sites-list">
                 <li>
                   <span class="brand linkedin">LinkedIn</span> : page de
-                  résultats des 30 derniers jours, de la plus récente à la plus
+                  résultats des 7 derniers jours, de la plus récente à la plus
                   ancienne, 25 offres par page. L'agent
                   parcourt jusqu'à 5 pages et s'arrête dès qu'il a ouvert ses
                   <b>8 offres</b> LinkedIn. Lieu imposé par
@@ -1861,7 +1861,7 @@
                   espaçant chaque téléchargement de 1 à 3 s, et y trouve
                   l'adresse et la date de mise à jour de toutes les offres du
                   site, sans leur contenu. Il filtre ensuite lui-même : offres
-                  mises à jour depuis moins de 30 jours, dont le titre lu dans
+                  mises à jour depuis moins de 7 jours, dont le titre lu dans
                   l'adresse (<code>…/jobs/ingenieur-ia-h-f_paris</code>)
                   contient tous les mots-clés, au lieu demandé (lui aussi lu
                   dans l'adresse). La liste est gardée en mémoire 6 h (rien
@@ -1893,7 +1893,7 @@
                         <b>1 à 3 s</b> ; au plus une fois toutes les 6 h)
                       </li>
                       <li>
-                        filtre en mémoire : moins de 30 jours, mots-clés, lieu
+                        filtre en mémoire : moins de 7 jours, mots-clés, lieu
                         (liste découpée en tranches de 25)
                       </li>
                       <li>
@@ -1982,7 +1982,7 @@
                 </li>
                 <li>
                   <span class="brand indeed">Indeed</span> : page de résultats
-                  des 14 derniers jours (le maximum proposé par Indeed), triée
+                  des 7 derniers jours, triée
                   par date, 10 offres par page. L'agent parcourt jusqu'à 5 pages
                   et s'arrête dès qu'il a ouvert ses <b>4 offres</b> Indeed. Il
                   ne demande la page suivante que si Indeed en affiche le lien :
@@ -2667,19 +2667,23 @@ applications à base de LLM (RAG, agents)… 55K € - 70K € par an</pre
                   max), avec la liste des offres du Sheet ;
                 </li>
                 <li>
-                  cet e-mail se rattache à une offre du Sheet, uniquement si il
-                  passe cette
-                  <b>double vérification</b> : le LLM désigne l'offre (son
-                  <code>id</code>, choisi dans la liste du Sheet), puis le code
-                  contrôle que le nom de l'entreprise de cette offre apparaît
-                  bien dans l'e-mail (expéditeur, objet ou texte ; les mots trop
-                  courants comme « groupe » ou « consulting » ne comptent pas).
-                  Si l'entreprise citée n'a qu'une seule offre au Sheet, c'est
-                  elle qui est retenue, même si l'intitulé cité dans l'e-mail
-                  diffère (« Ingénieur IA » pour « Ingénieur Développement IA et
-                  Python secteur Finance »). Si l'une des deux vérifications
-                  échoue, l'e-mail n'est rattaché à aucune offre et il est listé
-                  « hors Sheet » dans le bilan ;
+                  cet e-mail se rattache à une <b>entreprise</b> du Sheet, pour
+                  n'importe lequel de ses postes : celle que nomme le LLM
+                  (l'entreprise qui recrute, pas LinkedIn ou l'outil de
+                  recrutement qui envoie l'e-mail), à condition que son nom
+                  apparaisse bien dans l'e-mail (expéditeur, objet ou texte ; les
+                  mots trop courants comme « groupe » ou « consulting » ne
+                  comptent pas). « DHM GROUP » et « DHM IT » sont la même
+                  entreprise. Si aucune entreprise du Sheet ne correspond,
+                  l'e-mail est listé « hors Sheet » dans le bilan ;
+                </li>
+                <li>
+                  le statut, lui, ne change que sur l'offre que l'e-mail désigne
+                  sans ambiguïté (<b>double vérification</b> : le LLM donne son
+                  <code>id</code>, le code contrôle que l'entreprise est citée ;
+                  ou l'entreprise n'a qu'une offre au Sheet). Un refus pour un
+                  poste ne vaut pas pour les autres offres de la même
+                  entreprise ;
                 </li>
                 <li>
                   le nouveau statut est plus avancé que l'actuel : accusé →
@@ -2692,15 +2696,19 @@ applications à base de LLM (RAG, agents)… 55K € - 70K € par an</pre
               </ul>
               <p>
                 Même quand le statut ne change pas, la colonne
-                <code>echanges_mail</code> de l'offre rattachée cite l'e-mail
-                (date, type, objet) : avec un lien direct vers l'e-mail pour
-                Gmail ; sans lien pour IONOS, dont le webmail n'a pas d'adresse
+                <code>echanges_mail_avec_entreprise</code> cite l'e-mail (date,
+                type, objet) sur <b>toutes les offres de l'entreprise</b> : une
+                entreprise qui a deux offres au Sheet a deux fois la même
+                cellule, et tous les échanges avec elle se lisent sur chacune.
+                Pour Gmail, chaque ligne a un lien direct vers l'e-mail
+                ; pas de lien pour IONOS, dont le webmail n'a pas d'adresse
                 par e-mail utilisable, la date, le type et l'objet suffisent à
                 le retrouver. Les e-mails classés accusé, action requise, refus
-                ou entretien <b>et</b> rattachés à une offre (double
-                vérification réussie) sont rangés dans le dossier
-                <code>jobs_ai</code> de leur boîte ; un e-mail « hors Sheet »
-                reste où il est. Rien d'autre ne bouge, rien n'est supprimé.
+                ou entretien sont rangés dans le dossier
+                <code>jobs_ai</code> de leur boîte, entreprise au Sheet ou
+                non : un e-mail « hors Sheet » (candidature faite à la main,
+                par exemple) y est rangé aussi, sans toucher au Sheet. Rien
+                d'autre ne bouge, rien n'est supprimé.
               </p>
               <div class="ex-label">Exemple</div>
               <div class="ex">
@@ -2748,12 +2756,11 @@ d&#x27;AI Applied Engineer et souhaiterions échanger avec vous…</pre
   &quot;resume&quot;: &quot;Entreprise X propose un premier échange.&quot;
 }
 
-<span class="c"># Vérification 1, par le LLM : offre désignée (linkedin-1234567890) → ok</span>
-<span class="c"># Vérification 2, par le code : « Entreprise X » est-il cité dans l'e-mail ?</span>
-<span class="c"># Oui → écrit dans le Sheet :</span>
-<span class="c">#   statut = entretien · echanges_mail += 2026-11-12 entretien « Votre candidature… »</span>
-<span class="c">#   e-mail rangé dans jobs_ai</span>
-<span class="c"># Non → rien n'est écrit ni rangé : e-mail « hors Sheet » dans le bilan</span></pre>
+<span class="c"># Entreprise : « Entreprise X » est au Sheet et citée dans l'e-mail → ok</span>
+<span class="c">#   echanges_mail_avec_entreprise += 2026-11-12 entretien « Votre candidature… »</span>
+<span class="c">#   (sur toutes les offres d'Entreprise X)</span>
+<span class="c"># Offre : linkedin-1234567890 désignée par le LLM → statut = entretien (cette offre seulement)</span>
+<span class="c"># E-mail rangé dans jobs_ai, entreprise au Sheet ou non (« hors Sheet » dans le bilan)</span></pre>
                 </div>
               </div>
             </div>
