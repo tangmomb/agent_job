@@ -74,6 +74,9 @@ Règles :
   `premiere_experience_poste_recherche` de `reponses`. Si c'est « aucune » : « 0 » pour un nombre, « aucune » pour un
   texte ; si le champ exige une date, ne choisis aucune date : abandon (`finish_application`, sent=false) en citant
   la question.
+- Question sur la façon dont le candidat a connu l'offre ou l'entreprise (« Comment avez-vous connu cette offre ? »,
+  « How did you hear about us? », source de la candidature) : réponds avec `source_offre` de `reponses` (réseaux
+  sociaux) ; dans une liste, choisis l'option la plus proche (« Réseaux sociaux », « Social media », sinon « LinkedIn »).
 - CV : il est souvent déjà sélectionné (CV enregistré sur le site, nom affiché, case cochée) ; dans ce cas ne le
   recharge pas. Utilise `form_upload_cv` seulement si un champ fichier demande un CV et qu'aucun n'est sélectionné.
 - Lettre de motivation : joins toujours la lettre préparée ci-dessous (celle du Sheet), même si le champ est
@@ -149,6 +152,16 @@ def tool_schema(fn: Callable) -> dict[str, Any]:
             "parameters": {"type": "object", "properties": props, "required": required},
         },
     }
+
+
+def apply_target(row: dict) -> tuple[str, str]:
+    """(site, adresse) où se fait la candidature : le site de l'offre, sauf une offre LinkedIn sans candidature
+    simplifiée dont « Postuler » mène à Welcome to the Jungle (ats = wttj) : candidature sur WTTJ, au lien relevé."""
+    link = row.get(APPLY_URL_COL) or ""
+    if (row.get("site") == "linkedin" and row.get(EASY_APPLY_COL) == "non" and row.get(ATS_COL) == "wttj"
+            and "welcometothejungle." in link):
+        return "wttj", link
+    return row.get("site", ""), row.get("url", "")
 
 
 class RunState:
@@ -285,12 +298,13 @@ def build_tools(session: BrowserSession, tracker: Tracker, profile: dict, state:
             return "skip", f"plafond de {max_run} candidatures par session atteint."
         if max_day not in (None, "") and tracker.count_applied_today() >= int(max_day):
             return "skip", f"plafond de {max_day} candidatures par jour atteint."
-        site = _site(url)
         jid = job_id(url)
         row = next((r for r in tracker.rows() if r["id"] == jid), {})
+        target = apply_target(row)[1] or url  # offre LinkedIn relayée vers WTTJ : candidature sur WTTJ
+        site = _site(target)
         forms.start_offer(jid, row.get("entreprise", ""), row.get("titre", ""))
         status = site.start_application(
-            url, on_loaded=lambda page: forms.save_offer(page.url, row.get("titre", ""), row.get("entreprise", "")))
+            target, on_loaded=lambda page: forms.save_offer(page.url, row.get("titre", ""), row.get("entreprise", "")))
         forms.capture(f"offre {status}")
         if status in ("external", "not_found"):
             if site.is_closed():  # « Les candidatures ne sont pas acceptées pour le moment »
@@ -707,7 +721,7 @@ def apply_to_offer(client: Mistral, session: BrowserSession, tracker: Tracker, p
     schemas = [tool_schema(f) for f in tools.values()]
     system = {"role": "system", "content": APPLY_PROMPT.format(
         batching=BATCHING_MANY if settings.apply_parallel else BATCHING_ONE,
-        platform=site_for_url(offer["url"], session).label or "LinkedIn",
+        platform=site_for_url(apply_target(offer)[1] or offer["url"], session).label or "LinkedIn",
         title=offer.get("titre", ""), company=offer.get("entreprise", ""), location=offer.get("lieu", ""),
         url=offer["url"], letter=letter or "(aucune)",
         profile=yaml.safe_dump(profile, allow_unicode=True, sort_keys=False))}

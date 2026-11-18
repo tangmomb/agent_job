@@ -53,6 +53,7 @@ reponses:
   pretentions_salariales: "55 000 € brut annuel"
   tjm_freelance_minimum: "450 € HT par jour" # minimum en freelance : un TJM proposé au moins égal convient, en dessous non
   disponibilite: "préavis de 2 mois"
+  source_offre: "Réseaux sociaux" # « Comment avez-vous connu cette offre / entendu parler de nous ? »
   jours_par_semaine: "5/5" # jours travaillés par semaine (« À quelle fréquence es-tu disponible ? »)
   autorise_a_travailler_en_france: true
   besoin_de_sponsorship_visa: false

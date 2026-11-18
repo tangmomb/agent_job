@@ -26,7 +26,7 @@ from mistralai.client import Mistral
 from rich.console import Console
 
 from . import ats
-from .agent import RunState, apply_to_offer
+from .agent import RunState, apply_target, apply_to_offer
 from .mail import check_mail
 from .browser import BrowserSession, session_file
 from .config import ROOT, load_profile, settings
@@ -164,12 +164,13 @@ def collect_batch(client: Mistral, tracker: Tracker, report: dict, apply_levels:
         letter = str(data.get("lettre") or "").strip()
         problem = letter_problem(letter, signature) if statut == "à postuler" else ""
         row = tracker.get(offer["url"])
-        if statut == "à postuler" and row.get("site") not in auto_apply_sites():
+        relayed = apply_target(row)[0] != row.get("site")  # offre LinkedIn dont « Postuler » mène à WTTJ
+        if statut == "à postuler" and apply_target(row)[0] not in auto_apply_sites():
             statut = "à postuler (manuel)"  # candidature pas encore automatisée sur ce site
             fields["statut"] = statut
             fields["notes"] = (fields["notes"] + f" | Candidature automatique non prise en charge sur {row.get('site')} : "
                                "postuler depuis le lien de l'offre.")[:500]
-        elif statut == "à postuler" and row.get(EASY_APPLY_COL) == "non":
+        elif statut == "à postuler" and row.get(EASY_APPLY_COL) == "non" and not relayed:
             statut = "à postuler (manuel)"  # candidature sur le site de l'entreprise : pas d'envoi automatique
             fields["statut"] = statut
             fields["notes"] = (fields["notes"] + " | Pas de candidature simplifiée : postuler sur le site de l'offre.")[:500]
@@ -205,7 +206,8 @@ def apply_phase(client: Mistral, session: BrowserSession, tracker: Tracker, prof
     for offer in candidates:
         if stop_requested():
             break
-        if offer["site"] in blocked or site_paused_until(offer["site"]):
+        target = apply_target(offer)[0]  # WTTJ pour une offre LinkedIn relayée vers WTTJ
+        if target in blocked or site_paused_until(target):
             continue
         max_run, max_day = cap(rech, "max_candidatures_par_session"), cap(rech, "max_candidatures_par_jour")
         if max_run is not None and len(state.applied) >= max_run:
@@ -226,9 +228,9 @@ def apply_phase(client: Mistral, session: BrowserSession, tracker: Tracker, prof
         try:
             apply_to_offer(client, session, tracker, profile, state, offer, letter)
         except (SiteBlocked, SessionExpired) as e:
-            note_block(state, offer["site"], e)
+            note_block(state, target, e)
             console.print(f"[red]⚠ {e}")
-            blocked.add(offer["site"])
+            blocked.add(target)
         except Exception as e:  # erreur imprévue : la session continue (bilan et journal écrits)
             state.incidents.append(f"candidature {offer['url']} : {type(e).__name__}: {e}"[:300])
             console.print(f"[red]⚠ Candidature interrompue : {type(e).__name__}: {e}")
@@ -241,8 +243,9 @@ def cap(rech: dict, key: str) -> int | None:
 
 
 def application_candidates(tracker: Tracker, levels: list[str]) -> list[dict]:
-    rows = [r for r in tracker.rows("à postuler") if r["site"] in auto_apply_sites() and r["match"] in levels
-            and r[EASY_APPLY_COL] != "non"]  # vide : offre antérieure, trouvée en candidature simplifiée
+    # candidature simplifiée (vide : offre antérieure, trouvée ainsi), ou offre LinkedIn relayée vers WTTJ
+    rows = [r for r in tracker.rows("à postuler") if apply_target(r)[0] in auto_apply_sites() and r["match"] in levels
+            and (r[EASY_APPLY_COL] != "non" or apply_target(r)[0] != r["site"])]
     order = {n: i for i, n in enumerate(NIVEAUX)}  # bon, puis moyen ; à niveau égal, les plus anciennes d'abord
     return sorted(rows, key=lambda r: (order.get(r["match"], len(NIVEAUX)), r["date_ajout"]))
 

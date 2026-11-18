@@ -2401,7 +2401,8 @@ url = <span class="py-str">f"https://www.linkedin.com/jobs/view/{numero}/"</span
                   est <span class="lvl lvl-faible">faible</span> ; une offre
                   retenue où l'agent ne sait pas postuler (pas de candidature
                   simplifiée LinkedIn ni de candidature directe WTTJ, ou offre
-                  Indeed) passe en <b>"à postuler (manuel)"</b> : le brouillon de
+                  Indeed ; une offre LinkedIn dont le bouton « Postuler » mène à
+                  WTTJ reste, elle, à postuler sur WTTJ) passe en <b>"à postuler (manuel)"</b> : le brouillon de
                   lettre est prêt, la candidature est à envoyer à la main, et les e-mails
                   de réponse suivront l'offre (étape 3) ;
                 </li>
@@ -2555,6 +2556,7 @@ reponses:
   pretentions_salariales: &quot;[prétentions salariales]&quot;
   tjm_freelance_minimum: &quot;[TJM minimum]&quot; # minimum en freelance : un TJM proposé au moins égal convient, en dessous non
   disponibilite: &quot;[disponibilité]&quot;
+  source_offre: &quot;Réseaux sociaux&quot; # « Comment avez-vous connu cette offre / entendu parler de nous ? »
   jours_par_semaine: &quot;5/5&quot; # jours travaillés par semaine (« À quelle fréquence es-tu disponible ? »)
   autorise_a_travailler_en_france: [oui/non]
   besoin_de_sponsorship_visa: [oui/non]
@@ -2780,7 +2782,9 @@ d&#x27;AI Applied Engineer et souhaiterions échanger avec vous…</pre
                 lui-même la lettre, après relecture du brouillon. L'agent prend dans le
                 Google Sheet
                 de suivi les offres au statut « à postuler » (candidature
-                simplifiée LinkedIn, ou candidature directe WTTJ), les matchs
+                simplifiée LinkedIn, candidature directe WTTJ, ou offre LinkedIn
+                dont l'ATS est WTTJ : la candidature se fait alors sur WTTJ, au
+                lien relevé), les matchs
                 <span class="lvl lvl-bon">bons</span> d'abord, puis les
                 <span class="lvl lvl-moyen">moyens</span>. Pour chacune :
               </p>
